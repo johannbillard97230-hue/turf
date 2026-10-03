@@ -1,0 +1,249 @@
+{
+  "project_name": "TurfMetrics Pro - PMU Quinté+ Analytical Engine",
+  "app_type": "dashboard",
+  "theme": "dark",
+  "design_concept": {
+    "name": "Turf Pro Tactical Prestige",
+    "description": "High-contrast analytical command center for professional horse racing handicapping. Combines the heritage and gravitas of traditional French turf (Longchamp, Vincennes, Chantilly) with high-density Bloomberg-grade quantitative analytics. Deep emerald turf greens, obsidian charcoal carbon surfaces, brushed brass/warm gold accents, and crisp monospaced numbers.",
+    "emotional_archetype": "The Performance Pro & High-Contrast Swiss Analytical",
+    "forbidden_colors": ["#1B93A4", "#7351B7"],
+    "forbidden_fonts": ["space grotesk", "Inter for headings", "Roboto", "Comic Sans"]
+  },
+  "typography": {
+    "fonts": {
+      "display": "Barlow Condensed, 'Oswald', sans-serif",
+      "heading": "Outfit, 'Cabinet Grotesk', -apple-system, sans-serif",
+      "body": "IBM Plex Sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      "mono": "JetBrains Mono, 'Roboto Mono', 'Courier New', monospace"
+    },
+    "hierarchy": {
+      "h1": "text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight uppercase font-display",
+      "h2": "text-2xl sm:text-3xl font-bold tracking-tight leading-snug font-heading text-white",
+      "h3": "text-xl sm:text-2xl font-semibold tracking-normal text-white",
+      "h4": "text-lg font-medium tracking-normal text-emerald-400 font-mono",
+      "table_header": "text-xs font-semibold tracking-widest uppercase text-emerald-300/80 font-mono",
+      "metric_large": "text-3xl sm:text-4xl font-extrabold font-mono tracking-tighter text-amber-300",
+      "body": "text-sm leading-relaxed text-zinc-300",
+      "body_small": "text-xs leading-normal text-zinc-400",
+      "badge": "text-[11px] font-mono font-bold uppercase tracking-wider"
+    },
+    "google_fonts_url": "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap"
+  },
+  "colors": {
+    "mode": "dark",
+    "palette": {
+      "background_dark": "#0A0D0B",
+      "surface_card": "#111713",
+      "surface_card_subtle": "#16201A",
+      "surface_elevated": "#1C2720",
+      "border_subtle": "#1E2E24",
+      "border_accent": "#2B4736",
+      "border_gold": "rgba(234, 179, 8, 0.35)",
+      "turf_emerald": {
+        "glow": "#10B981",
+        "primary": "#059669",
+        "dark": "#064E3B",
+        "deep": "#032E22",
+        "badge_bg": "rgba(5, 150, 105, 0.18)",
+        "badge_border": "rgba(16, 185, 129, 0.3)"
+      },
+      "gold_trophy": {
+        "bright": "#FBBF24",
+        "gold": "#EAB308",
+        "deep": "#CA8A04",
+        "glow": "rgba(234, 179, 8, 0.2)",
+        "badge_bg": "rgba(234, 179, 8, 0.15)",
+        "badge_border": "rgba(234, 179, 8, 0.35)"
+      },
+      "status": {
+        "success": "#10B981",
+        "success_bg": "rgba(16, 185, 129, 0.15)",
+        "warning": "#F59E0B",
+        "warning_bg": "rgba(245, 158, 11, 0.15)",
+        "danger": "#EF4444",
+        "danger_bg": "rgba(239, 68, 68, 0.15)",
+        "nd_missing": "#71717A",
+        "nd_missing_bg": "rgba(113, 113, 122, 0.2)"
+      },
+      "text": {
+        "primary": "#F4F4F5",
+        "secondary": "#A1A1AA",
+        "muted": "#71717A",
+        "accent": "#FDE047",
+        "link": "#34D399"
+      }
+    }
+  },
+  "layout_architecture": {
+    "header_nav": {
+      "style": "Sticky top-0 z-50 backdrop-blur-xl bg-[#0A0D0B]/90 border-b border-[#1E2E24] px-4 lg:px-8 py-3",
+      "elements": [
+        "Brand Logo: TurfMetrics Pro (Golden Horseshoe/Pegasus icon + emerald text)",
+        "Active Badge: Mode Live Quinté+ PMU",
+        "Scrape Source Status Bar (Pronostics-Turf Valeur, Pronostics-Turf Citations, Paris-Turf Stats)",
+        "Action CTA: Bouton Rafraîchir les Données (Live scrape animation)",
+        "Historical Drawer Toggle / View Saved Races button"
+      ]
+    },
+    "race_hero_banner": {
+      "style": "bg-gradient-to-r from-[#0C1510] via-[#111C16] to-[#0A0D0B] border border-[#1E2E24] rounded-xl p-5 sm:p-6 mb-6 shadow-2xl relative overflow-hidden",
+      "visual_accent": "1px gold-emerald hairline highlight top border, ambient backdrop jockey graphic with 15% opacity",
+      "data_points": [
+        "Course du jour (ex: Prix de la Ville de Paris / Hippodrome d'Auteuil / Vincennes / Chantilly)",
+        "R1C4 - Quinté+ National",
+        "Horaires du départ (ex: 15h15 Direct)",
+        "Spécifications: Distance (2700m), Type de piste (Grande Piste - Cendrée/Gazon), Corde à gauche, Allocation (€53,000)",
+        "Météo & État du terrain (Bon souple / Cendrée rapide)",
+        "Nombre de partants (14 à 16 chevaux déclarés)"
+      ]
+    },
+    "alert_banner": {
+      "style": "border border-amber-500/30 bg-amber-950/20 rounded-lg p-3.5 mb-6 text-amber-200 text-xs sm:text-sm flex items-center justify-between",
+      "purpose": "Avertissement transparent sur la complétude des sources et explications des pastilles N/D (Non Disponible)"
+    },
+    "main_table_container": {
+      "style": "bg-[#111713] border border-[#1E2E24] rounded-xl shadow-xl overflow-hidden mb-8",
+      "locked_order": "Classé par Valeur décroissante (verrouillé par défaut - méthode propriétaire)",
+      "table_columns": [
+        {
+          "name": "Rang",
+          "key": "rank",
+          "width": "w-14",
+          "desc": "Position analytique issue du tri par Valeur décroissante. Top 3 rehaussés d'or, argent, bronze."
+        },
+        {
+          "name": "N° & Cheval",
+          "key": "horse_number_name",
+          "width": "w-48 sm:w-64",
+          "desc": "Pastille dossard officielle PMU (couleur toque) + Nom cheval + Jockey / Driver + Entraîneur"
+        },
+        {
+          "name": "Valeur",
+          "key": "valeur",
+          "width": "w-28",
+          "desc": "Score numérique propriétaire issu de pronostics-turf.info. Moteur principal du classement avec indicateur visuel de puissance."
+        },
+        {
+          "name": "Nb Citations",
+          "key": "citations",
+          "width": "w-28",
+          "desc": "Nombre de citations presse spécialiste (pronostics-turf.info) avec jauge relative"
+        },
+        {
+          "name": "Sexe / Âge",
+          "key": "sexe_age",
+          "width": "w-24",
+          "desc": "Source Paris-Turf (ex: H6, M5, F7). Badge compact."
+        },
+        {
+          "name": "Taux de réussite",
+          "key": "win_rate",
+          "width": "w-36",
+          "desc": "Pourcentage de réussite (% victoires / podiums - Paris-Turf) avec mini progress bar bi-color."
+        },
+        {
+          "name": "3 Dernières sorties",
+          "key": "last_outings",
+          "width": "w-40 sm:w-52",
+          "desc": "Musique récente (ex: 1a 3a (25) 2a ou Da 4m 1a). Pastilles colorées selon résultat (1er=vert, podium=jaune, disqualifié=rouge)."
+        },
+        {
+          "name": "Statut / Source",
+          "key": "status",
+          "width": "w-24",
+          "desc": "Intégrité des données (3/3 sources ou N/D signalé)."
+        }
+      ]
+    },
+    "history_sidebar": {
+      "style": "Off-canvas ou sidebar rétractable répertoriant les analyses Quinté+ sauvegardées en base de données avec date, hippodrome, vainqueur estimé, et bouton de rechargement d'archive."
+    },
+    "metadata_footer": {
+      "style": "bg-[#0A0D0B] border-t border-[#1E2E24] p-6 text-xs text-zinc-500 flex flex-col md:flex-row justify-between items-center gap-4",
+      "content": "Horodatage exact du scraping, protocoles d'extensibilité pour futurs critères (gain en carrière, cotes direct, indice forme jockeys), mentions de responsabilité légale PMU/ARJEL."
+    }
+  },
+  "visual_enhancers": {
+    "texture": "Subtle dark slate noise overlay & green neon hairline dividers",
+    "micro_interactions": [
+      "Row hover spotlight with subtle emerald left-border activation (border-l-4 border-emerald-400)",
+      "Pill tag animation on refresh button with spinning dual-ring icon",
+      "Status LED pulses for active scrapers (emerald ping dot)",
+      "Modal/Drawer for detailed breakdown per horse showing raw source data from Pronostics-Turf and Paris-Turf",
+      "Rank badges 1st (gold), 2nd (silver), 3rd (bronze) with soft metallic radial glow"
+    ],
+    "cards_and_badges": {
+      "nd_badge": "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-zinc-800 text-zinc-400 border border-zinc-700",
+      "gold_badge": "inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30",
+      "emerald_badge": "inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30",
+      "valeur_meter": "Horizontal micro-sparkline or segmented block representing value magnitude"
+    }
+  },
+  "image_urls": [
+    {
+      "category": "hero_background_atmosphere",
+      "image_url": "https://images.unsplash.com/flagged/photo-1569319388901-605a6d2d1299?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2ODl8MHwxfHNlYXJjaHwyfHxyYWNlaG9yc2UlMjByYWNpbmd8ZW58MHx8fHwxNzkxMDA0MzI3fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Peloton de chevaux de course en plein virage sur piste en herbe avec jockeys en casaques colorées - Idéal en overlay subtil (opacité 15-20%) pour le hero banner de la course du jour"
+    },
+    {
+      "category": "horse_finish_line",
+      "image_url": "https://images.unsplash.com/photo-1785523478892-3081e427f6d0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA0MTJ8MHwxfHNlYXJjaHw0fHx0aG9yb3VnaGJyZWQlMjBob3JzZSUyMHJhY2UlMjBmaW5pc2h8ZW58MHx8fHwxNzkxMDA0MzIyfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Lutte au poteau entre plusieurs chevaux de course sur la piste en herbe - pour les modales de confrontation directe de chevaux"
+    },
+    {
+      "category": "trophy_prestige",
+      "image_url": "https://images.pexels.com/photos/7014360/pexels-photo-7014360.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Trophée équestre doré sur fond sombre - parfait pour illustrer le podium d'or de la méthode propriétaire"
+    }
+  ],
+  "component_structure_guidelines": {
+    "files_to_create_or_customize": [
+      "/app/frontend/src/App.js (Main layout with state orchestration, live refresh trigger, toast alerts)",
+      "/app/frontend/src/components/RaceHeader.js (Course du jour, hippodrome, distance, heure, badge R1C4)",
+      "/app/frontend/src/components/ScraperStatusBar.js (Pronostics-Turf Valeur, Citations, Paris-Turf status pills)",
+      "/app/frontend/src/components/TurfTable.js (Le tableau principal ordonné par Valeur décroissante, pastilles N/D)",
+      "/app/frontend/src/components/HorseDetailDrawer.js (Fiche détaillée du cheval au clic sur une ligne avec croisement des sources)",
+      "/app/frontend/src/components/HistorySidebar.js (Historique des analyses sauvegardées en base MongoDB/SQLite)",
+      "/app/frontend/src/components/AlertBanner.js (Bandeau d'information sur les données manquantes et règles de calcul)"
+    ]
+  },
+  "testing_attributes": {
+    "rule": "Every interactive and critical analytical metric must have a data-testid attribute in kebab-case",
+    "examples": [
+      "data-testid=\"refresh-scrape-button\"",
+      "data-testid=\"race-header-title\"",
+      "data-testid=\"race-quinte-badge\"",
+      "data-testid=\"source-status-pronostics-valeur\"",
+      "data-testid=\"source-status-pronostics-citations\"",
+      "data-testid=\"source-status-paris-turf\"",
+      "data-testid=\"turf-analysis-table\"",
+      "data-testid=\"table-row-horse-1\"",
+      "data-testid=\"horse-valeur-1\"",
+      "data-testid=\"horse-citations-1\"",
+      "data-testid=\"horse-missing-data-badge\"",
+      "data-testid=\"history-toggle-button\"",
+      "data-testid=\"save-race-button\"",
+      "data-testid=\"filter-search-horse\""
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Respecter strictement le thème sombre 'turf pro' : fond obsidian #0A0D0B, cartes #111713, touches émeraude #10B981 et or #EAB308.",
+    "Le tableau de bord DOIT obligatoirement classer les chevaux par 'Valeur' décroissante par défaut (la règle métier stipule un classement verrouillé par cette valeur). Indiquer clairement par une icône cadenas ou badge 'Tri verrouillé par Valeur (Méthode Propriétaire)'.",
+    "Pour chaque cheval où une information est introuvable (par exemple échec partiel de Paris-Turf ou Pronostics-Turf), afficher une pastille grise propre 'N/D' (Non Disponible) et afficher un bandeau d'alerte explicatif en haut de page.",
+    "Fournir 3 statuts de sources distincts dans le header : 'Pronostics-Turf (Valeur)', 'Pronostics-Turf (Citations)', 'Paris-Turf (Sexe/Âge, Réussite, Musique)'. Chaque statut doit avoir un badge (OK vert, Partiel ambre, Échec rouge).",
+    "Le bouton 'Rafraîchir les données' doit déclencher un appel API au backend FastAPI avec un état de chargement élégant (spinner/barre de progression pulsée + toast Sonner).",
+    "Sauvegarder chaque résultat de course en base de données et fournir un panneau latéral d'historique ('Courses analysées') permettant de revoir les courses passées.",
+    "Prévoir l'architecture extensible : laisser des slots prêts pour de futurs critères (cote PMU en direct, indice jockey/driver, terrain de prédilection) sans encombrer la V1.",
+    "Utiliser Sonner pour les notifications de scraping et les erreurs de réseau.",
+    "Veiller à ce qu'aucun composant ne possède d'arrière-plan totalement transparent dans les headers ou fenêtres modales."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": {
+    "anti_ai_rules": [
+      "Do NOT use standard boring generic gray borders; use tinted subtle emerald/slate borders.",
+      "Do NOT center-align table content arbitrarily; numerical values should be tabular and aligned with font-mono.",
+      "Ensure high contrast on dark surfaces: all body text must be at least #A1A1AA, headers #F4F4F5 or bright accents.",
+      "Never use emoji placeholders like 🐴 or 🤖 where professional SVGs from lucide-react (Trophy, Gauge, Activity, ShieldCheck, Flame) can be used.",
+      "Add interactive drawer or popover to let users inspect why a horse received its value and citations."
+    ]
+  }
+}
