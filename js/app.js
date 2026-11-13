@@ -230,15 +230,17 @@ TM.App = (() => {
       </span>`;
   }
 
-  /* Coloration individuelle des places : 1er vert, 2e bleu, 3e orange.
-     Les autres résultats gardent l'apparence standard. L'ordre
-     chronologique des sorties n'est pas modifié. */
+  /* Coloration individuelle des places : 1er vert, 2e bleu, 3e orange,
+     4e violet, 5e rose. Les autres résultats gardent l'apparence
+     standard. L'ordre chronologique des sorties n'est pas modifié. */
   function classePlace(place) {
     if (!place) return "place";
     const t = String(place).toLowerCase().replace(/\s/g, "").replace("ème", "e");
     if (t === "1er" || t === "1e" || t === "1") return "place p1";
     if (t === "2e" || t === "2") return "place p2";
     if (t === "3e" || t === "3") return "place p3";
+    if (t === "4e" || t === "4") return "place p4";
+    if (t === "5e" || t === "5") return "place p5";
     return "place";
   }
 
@@ -270,7 +272,6 @@ TM.App = (() => {
                  aria-label="Sélectionner le numéro ${p.numero}, ${echappe(p.nom)}">
         </span>
       </td>
-      <td class="col-rang"><span class="rang-medaille">${rang}</span></td>
       <td class="col-nom">${ligneIdentite(p)}</td>
       <td class="col-valeur">
         <div class="valeur-bloc">
@@ -342,7 +343,7 @@ TM.App = (() => {
     cartes.innerHTML = "";
 
     if (!partantsTries.length) {
-      tbody.innerHTML = `<tr class="ligne-etat"><td colspan="10">Aucun partant récupéré. Consultez le rapport de récupération.</td></tr>`;
+      tbody.innerHTML = `<tr class="ligne-etat"><td colspan="9">Aucun partant récupéré. Consultez le rapport de récupération.</td></tr>`;
       return;
     }
 

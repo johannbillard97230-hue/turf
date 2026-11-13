@@ -66,9 +66,10 @@ d'égalité. Jamais de tri sur les cotes.
 
 - **Or** : cheval(s) avec le plus grand nombre de victoires (ex æquo inclus).
 - **Turquoise** : cheval(s) avec le plus grand nombre de places (ex æquo inclus).
-- **3 dernières sorties** : 1er en vert, 2ème en bleu, 3ème en orange — les
-  autres résultats gardent l'apparence standard, l'ordre chronologique est
-  conservé.
+- **3 dernières sorties** : 1er en vert, 2ème en bleu, 3ème en orange,
+  4ème en violet, 5ème en rose — les autres résultats gardent l'apparence
+  standard, l'ordre chronologique est conservé. Le classement reste celui
+  de la valeur décroissante (la colonne « Rang » a été retirée).
 - **Colonne Déferrage** : déferrage de la course du jour — `D4` (déferré des 4),
   `DA` (antérieur), `DP` (postérieur), `—` (non déferré), `N/D` si la source
   ne le précise pas (aucune valeur inventée).

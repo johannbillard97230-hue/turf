@@ -20,6 +20,8 @@
   --turquoise-sombre: #1d6b78;
   --bleu-place: #6db3ff;
   --orange-place: #ff9f43;
+  --violet-place: #b48cff;
+  --rose-place: #ff7d9c;
   --rouge: #f0524f;
   --texte: #eef5f0;
   --texte-doux: #a9c3b4;
@@ -413,14 +415,13 @@ body {
 
 /* largeurs fixes (table-layout: fixed) */
 .col-sel { width: 46px; }
-.col-rang { width: 56px; }
-.col-nom { width: 17%; }
+.col-nom { width: 19%; }
 .col-valeur { width: 12%; }
 .col-cit { width: 8%; }
 .col-corde { width: 6%; }
 .col-def { width: 8%; }
 .col-sexe { width: 9%; }
-.col-taux { width: 17%; }
+.col-taux { width: 18%; }
 .col-sorties { width: auto; }
 
 /* corde : numéro à la corde */
@@ -490,7 +491,6 @@ tr.dist-p:not(.dist-v) { box-shadow: inset 3px 0 0 var(--turquoise); }
   color: var(--texte-doux);
 }
 tr.top10 .rang-medaille { border-color: var(--dore-sombre); color: var(--dore); }
-tr[data-rang="1"] .rang-medaille { border-color: var(--dore); color: var(--dore); box-shadow: 0 0 12px rgba(242, 194, 48, 0.35); }
 
 /* numéro du cheval : carré */
 .identite { display: flex; align-items: center; gap: 12px; }
@@ -618,6 +618,8 @@ tr[data-rang="3"] .valeur-chiffre { text-shadow: 0 0 16px rgba(242, 194, 48, 0.4
 .sorties .place.p1 { color: var(--emeraude); }      /* 1er  : vert   */
 .sorties .place.p2 { color: var(--bleu-place); }    /* 2ème : bleu   */
 .sorties .place.p3 { color: var(--orange-place); }  /* 3ème : orange */
+.sorties .place.p4 { color: var(--violet-place); }  /* 4ème : violet */
+.sorties .place.p5 { color: var(--rose-place); }    /* 5ème : rose   */
 
 .ligne-etat td {
   text-align: center;
