@@ -18,7 +18,7 @@ sélection personnelle de 8 chevaux.
 
 | Rôle | Source | Contenu |
 |---|---|---|
-| Valeur | pronostics-turf.info — `presse-partants-pmu.php` | valeur brute publiée (« sa valeur »), âge, n° à la corde, jockey/driver, entraîneur, gains, statistiques courses / victoires / placés |
+| Valeur | pronostics-turf.info — `presse-partants-pmu.php` | valeur brute publiée (« sa valeur »), âge, n° à la corde, jockey/driver, entraîneur, gains, statistiques courses / victoires / placés, déferrage de la course du jour |
 | Citations | pronostics-turf.info — `liste-synthese-de-pronostics-turf.php` | « LISTE RÉCAPITULATIVE — Position / Numéro / Fois cité » de la revue de presse hippique |
 | Sexe/Âge & musique | Fiches Canalturf | sexe, âge, musique, 3 dernières sorties, réunion/course |
 
@@ -61,3 +61,14 @@ La valeur affichée est la valeur brute publiée par pronostics-turf.info —
 aucune pondération, aucun recalcul. Le classement est verrouillé : valeur
 décroissante, puis citations décroissantes, puis numéro croissant en cas
 d'égalité. Jamais de tri sur les cotes.
+
+## Repères visuels
+
+- **Or** : cheval(s) avec le plus grand nombre de victoires (ex æquo inclus).
+- **Turquoise** : cheval(s) avec le plus grand nombre de places (ex æquo inclus).
+- **3 dernières sorties** : 1er en vert, 2ème en bleu, 3ème en orange — les
+  autres résultats gardent l'apparence standard, l'ordre chronologique est
+  conservé.
+- **Colonne Déferrage** : déferrage de la course du jour — `D4` (déferré des 4),
+  `DA` (antérieur), `DP` (postérieur), `—` (non déferré), `N/D` si la source
+  ne le précise pas (aucune valeur inventée).

@@ -16,6 +16,10 @@
   --emeraude-sombre: #0b5c40;
   --dore: #f2c230;
   --dore-sombre: #8a6d1d;
+  --turquoise: #40c4d8;
+  --turquoise-sombre: #1d6b78;
+  --bleu-place: #6db3ff;
+  --orange-place: #ff9f43;
   --rouge: #f0524f;
   --texte: #eef5f0;
   --texte-doux: #a9c3b4;
@@ -391,7 +395,7 @@ body {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.88rem;
-  min-width: 900px;
+  min-width: 980px;
   table-layout: fixed;
 }
 
@@ -410,27 +414,54 @@ body {
 /* largeurs fixes (table-layout: fixed) */
 .col-sel { width: 46px; }
 .col-rang { width: 56px; }
-.col-nom { width: 19%; }
+.col-nom { width: 17%; }
 .col-valeur { width: 12%; }
 .col-cit { width: 8%; }
-.col-corde { width: 7%; }
+.col-corde { width: 6%; }
+.col-def { width: 8%; }
 .col-sexe { width: 9%; }
-.col-taux { width: 18%; }
+.col-taux { width: 17%; }
 .col-sorties { width: auto; }
 
-/* corde : numéro à la corde + déferrage éventuel */
+/* corde : numéro à la corde */
 .corde-num {
   font-family: var(--fonte-mono);
   font-weight: 600;
   color: var(--texte);
 }
-.deferre {
-  display: block;
-  font-size: 0.62rem;
-  color: var(--texte-faible);
-  letter-spacing: 0.02em;
-  margin-top: 2px;
+
+/* déferrage de la course du jour : D4 / DA / DP / — (N/D si absent) */
+.def-code {
+  display: inline-block;
+  font-family: var(--fonte-mono);
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--noir-2);
+  border: 1px solid var(--bordure-forte);
+  color: var(--texte-doux);
+  white-space: nowrap;
 }
+.def-code.d4 { color: var(--emeraude); border-color: var(--emeraude-sombre); background: rgba(23, 185, 120, 0.09); }
+
+/* distinctions statistiques : or = max victoires, turquoise = max places
+   (ex æquo : tous les chevaux à égalité sont marqués) */
+tr.dist-v { box-shadow: inset 3px 0 0 var(--dore); }
+tr.dist-p:not(.dist-v) { box-shadow: inset 3px 0 0 var(--turquoise); }
+.distinctions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.distinction {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.dist-vic { background: rgba(242, 194, 48, 0.14); color: var(--dore); border: 1px solid rgba(242, 194, 48, 0.45); }
+.dist-plc { background: rgba(64, 196, 216, 0.13); color: var(--turquoise); border: 1px solid rgba(64, 196, 216, 0.45); }
 
 .partants tbody td {
   padding: 12px 10px;
@@ -584,7 +615,9 @@ tr[data-rang="3"] .valeur-chiffre { text-shadow: 0 0 16px rgba(242, 194, 48, 0.4
 .sorties { font-size: 0.76rem; color: var(--texte-doux); line-height: 1.5; font-family: var(--fonte-mono); }
 .sorties .sortie { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
 .sorties .place { font-weight: 600; color: var(--texte); }
-.sorties .place.p1 { color: var(--dore); }
+.sorties .place.p1 { color: var(--emeraude); }      /* 1er  : vert   */
+.sorties .place.p2 { color: var(--bleu-place); }    /* 2ème : bleu   */
+.sorties .place.p3 { color: var(--orange-place); }  /* 3ème : orange */
 
 .ligne-etat td {
   text-align: center;
@@ -628,6 +661,8 @@ tr[data-rang="3"] .valeur-chiffre { text-shadow: 0 0 16px rgba(242, 194, 48, 0.4
   }
   .carte-cheval.top10 { border-color: var(--emeraude-sombre); background: rgba(23, 185, 120, 0.06); }
   .carte-cheval.selectionne { border-color: var(--dore-sombre); background: rgba(242, 194, 48, 0.07); }
+  .carte-cheval.dist-v { box-shadow: inset 3px 0 0 var(--dore); }
+  .carte-cheval.dist-p:not(.dist-v) { box-shadow: inset 3px 0 0 var(--turquoise); }
 
   .carte-ligne1 { display: flex; align-items: center; gap: 10px; }
   .carte-id { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; }

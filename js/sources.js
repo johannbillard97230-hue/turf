@@ -117,6 +117,15 @@ TM.Sources = (() => {
     "0": "Non déferré"
   };
 
+  // Code court affiché dans la colonne DÉFERRAGE (course du jour).
+  // Une icône inconnue => null => N/D (aucune valeur inventée).
+  const FERS_CODE = {
+    "des4": "D4",
+    "anterieur": "DA",
+    "posterieur": "DP",
+    "0": "—"
+  };
+
   function parsePressePartants(doc) {
     const course = {
       nom: null, hippodrome: null, dateTexte: null, distance: null,
@@ -188,6 +197,7 @@ TM.Sources = (() => {
         victoires: entier(/Victoires\s*:\s*(\d+)/i),
         places: entier(/Places\s*:\s*(\d+)/i),
         deferre: mFer ? (FERS[mFer[1]] || null) : null,
+        deferreCode: mFer ? (FERS_CODE[mFer[1]] || null) : null,
         citations: null,   // renseigné par la liste-synthèse
         idCheval: null,    // renseigné par Canalturf (fiches)
         fiche: null

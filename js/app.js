@@ -162,8 +162,54 @@ TM.App = (() => {
 
   function renduCorde(p) {
     if (p.poteau == null) return afficheND();
-    const def = p.deferre ? `<span class="deferre">${echappe(p.deferre)}</span>` : "";
-    return `<span class="corde-num">${p.poteau}</span>${def}`;
+    return `<span class="corde-num">${p.poteau}</span>`;
+  }
+
+  function renduDeferrage(p) {
+    if (p.deferreCode == null) return afficheND();
+    const cls = p.deferreCode === "D4" ? "def-code d4" : "def-code";
+    const titre = p.deferre ? ` title="${echappe(p.deferre)}"` : "";
+    return `<span class="${cls}"${titre}>${p.deferreCode}</span>`;
+  }
+
+  /* Statistiques réelles (victoires / places) : presse-partants en
+     priorité, fiche Canalturf en repli. null si indisponible — rien
+     n'est fabriqué. */
+  function statsDe(p) {
+    if (!p) return null;
+    if (p.victoires != null || p.places != null) {
+      return { victoires: p.victoires, places: p.places };
+    }
+    if (p.fiche && (p.fiche.victoires != null || p.fiche.places != null)) {
+      return { victoires: p.fiche.victoires, places: p.fiche.places };
+    }
+    return null;
+  }
+
+  /* Distinctions : plus de victoires (or) / plus de places (turquoise).
+     Ex æquo : tous les chevaux à égalité sont distingués. */
+  function calculDistinctions(partants) {
+    let maxV = 0, maxP = 0;
+    for (const p of partants) {
+      const s = statsDe(p);
+      if (!s) continue;
+      if (s.victoires != null && s.victoires > maxV) maxV = s.victoires;
+      if (s.places != null && s.places > maxP) maxP = s.places;
+    }
+    return p => {
+      const s = statsDe(p);
+      return {
+        vic: !!(s && maxV > 0 && s.victoires === maxV),
+        plc: !!(s && maxP > 0 && s.places === maxP)
+      };
+    };
+  }
+
+  function badgesDistinction(dist) {
+    let h = "";
+    if (dist.vic) h += `<span class="distinction dist-vic" title="Plus grand nombre de victoires parmi les partants (ex æquo inclus)">★ Max victoires</span>`;
+    if (dist.plc) h += `<span class="distinction dist-plc" title="Plus grand nombre de places parmi les partants (ex æquo inclus)">◆ Max places</span>`;
+    return h ? `<span class="distinctions">${h}</span>` : "";
   }
 
   function renduSexeAge(p) {
@@ -184,20 +230,34 @@ TM.App = (() => {
       </span>`;
   }
 
+  /* Coloration individuelle des places : 1er vert, 2e bleu, 3e orange.
+     Les autres résultats gardent l'apparence standard. L'ordre
+     chronologique des sorties n'est pas modifié. */
+  function classePlace(place) {
+    if (!place) return "place";
+    const t = String(place).toLowerCase().replace(/\s/g, "").replace("ème", "e");
+    if (t === "1er" || t === "1e" || t === "1") return "place p1";
+    if (t === "2e" || t === "2") return "place p2";
+    if (t === "3e" || t === "3") return "place p3";
+    return "place";
+  }
+
   function renduSorties(p) {
     if (!p.fiche || !p.fiche.sorties.length) return afficheND();
     return p.fiche.sorties.map(s => {
-      const cls = s.place === "1er" ? "place p1" : "place";
+      const cls = classePlace(s.place);
       const course = s.course ? ` — ${echappe(s.course)}` : "";
       return `<span class="sortie" title="${echappe(s.place)} · ${echappe(s.date)} · ${echappe(s.hippodrome)}${course}"><span class="${cls}">${echappe(s.place)}</span> · ${echappe(s.date)} · ${echappe(s.hippodrome)}${course}</span>`;
     }).join("");
   }
 
-  function ligneTableau(p, rang, valeurMax, citMax) {
+  function ligneTableau(p, rang, valeurMax, citMax, dist) {
     const tr = document.createElement("tr");
     tr.dataset.numero = p.numero;
     tr.dataset.rang = rang;
     if (rang <= 10) tr.classList.add("top10");
+    if (dist && dist.vic) tr.classList.add("dist-v");
+    if (dist && dist.plc) tr.classList.add("dist-p");
 
     const largeurValeur = valeurMax > 0 && p.valeur != null ? Math.max(3, Math.round((p.valeur / valeurMax) * 100)) : 0;
     const largeurCit = citMax > 0 && p.citations != null ? Math.max(3, Math.round((p.citations / citMax) * 100)) : 0;
@@ -225,15 +285,18 @@ TM.App = (() => {
         </div>
       </td>
       <td class="col-corde">${renduCorde(p)}</td>
+      <td class="col-def">${renduDeferrage(p)}</td>
       <td class="col-sexe">${renduSexeAge(p)}</td>
-      <td class="col-taux"><div class="taux">${renduTaux(p)}</div></td>
+      <td class="col-taux"><div class="taux">${renduTaux(p)}${dist ? badgesDistinction(dist) : ""}</div></td>
       <td class="col-sorties"><div class="sorties">${renduSorties(p)}</div></td>`;
     return tr;
   }
 
-  function carteMobile(p, rang, valeurMax, citMax) {
+  function carteMobile(p, rang, valeurMax, citMax, dist) {
     const div = document.createElement("article");
     div.className = "carte-cheval" + (rang <= 10 ? " top10" : "");
+    if (dist && dist.vic) div.classList.add("dist-v");
+    if (dist && dist.plc) div.classList.add("dist-p");
     div.dataset.numero = p.numero;
     const largeurValeur = valeurMax > 0 && p.valeur != null ? Math.max(3, Math.round((p.valeur / valeurMax) * 100)) : 0;
     const t = TM.Classement.tauxReussite(p);
@@ -258,8 +321,9 @@ TM.App = (() => {
       <div class="carte-infos">
         <span><span class="etiquette">Citations</span>${renduCitations(p)}</span>
         <span><span class="etiquette">Corde</span>${renduCorde(p)}</span>
+        <span><span class="etiquette">Déferrage</span>${renduDeferrage(p)}</span>
         <span><span class="etiquette">Sexe · Âge</span>${renduSexeAge(p)}</span>
-        <span><span class="etiquette">Taux de réussite</span>${t ? `<span class="pourcent" style="font-family:var(--fonte-mono);color:var(--emeraude);font-weight:600">${t.pourcent.toFixed(1).replace(".", ",")}%</span> <span class="detail">(${t.victoires} V + ${t.places} P) / ${t.courses}</span>` : afficheND()}</span>
+        <span><span class="etiquette">Taux de réussite</span>${t ? `<span class="pourcent" style="font-family:var(--fonte-mono);color:var(--emeraude);font-weight:600">${t.pourcent.toFixed(1).replace(".", ",")}%</span> <span class="detail">(${t.victoires} V + ${t.places} P) / ${t.courses}</span>` : afficheND()}${dist ? badgesDistinction(dist) : ""}</span>
         <span class="sorties"><span class="etiquette">3 dernières sorties</span>${renduSorties(p)}</span>
       </div>
       <div class="carte-sel-ligne">
@@ -278,16 +342,18 @@ TM.App = (() => {
     cartes.innerHTML = "";
 
     if (!partantsTries.length) {
-      tbody.innerHTML = `<tr class="ligne-etat"><td colspan="9">Aucun partant récupéré. Consultez le rapport de récupération.</td></tr>`;
+      tbody.innerHTML = `<tr class="ligne-etat"><td colspan="10">Aucun partant récupéré. Consultez le rapport de récupération.</td></tr>`;
       return;
     }
 
     const valeurMax = Math.max(...partantsTries.map(p => p.valeur == null ? 0 : p.valeur), 0);
     const citMax = Math.max(...partantsTries.map(p => p.citations == null ? 0 : p.citations), 0);
+    const distinctions = calculDistinctions(partantsTries);
 
     partantsTries.forEach((p, i) => {
-      tbody.appendChild(ligneTableau(p, i + 1, valeurMax, citMax));
-      cartes.appendChild(carteMobile(p, i + 1, valeurMax, citMax));
+      const dist = distinctions(p);
+      tbody.appendChild(ligneTableau(p, i + 1, valeurMax, citMax, dist));
+      cartes.appendChild(carteMobile(p, i + 1, valeurMax, citMax, dist));
     });
 
     document.querySelectorAll(".case-sel").forEach(caseEl => {
