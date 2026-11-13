@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test de récupération des cotes PMU — diagnostic TURFMETRICS PRO</title>
+<style>
+  :root { --fond:#0b1510; --carte:#12271b; --bord:#265240; --txt:#e8f2ec; --faible:#8fae9d; --ok:#3ddc97; --ko:#f0524f; --or:#f2c230; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fond); color:var(--txt); font:15px/1.55 system-ui, sans-serif; padding:24px; }
+  h1 { font-size:1.25rem; margin:0 0 4px; } h2 { font-size:1rem; margin:26px 0 8px; color:var(--or); }
+  .carte { background:var(--carte); border:1px solid var(--bord); border-radius:12px; padding:16px 18px; margin:12px 0; }
+  .ok { color:var(--ok); font-weight:700; } .ko { color:var(--ko); font-weight:700; }
+  code, pre { font-family:ui-monospace,monospace; font-size:.82rem; }
+  pre { background:#060d09; border:1px solid var(--bord); border-radius:8px; padding:10px; overflow:auto; max-height:260px; white-space:pre-wrap; }
+  table { border-collapse:collapse; width:100%; font-family:ui-monospace,monospace; font-size:.85rem; }
+  th, td { border:1px solid var(--bord); padding:5px 9px; text-align:left; }
+  th { background:#0b1a12; } td.c { text-align:right; }
+  input, button { font:inherit; padding:7px 10px; border-radius:8px; border:1px solid var(--bord); background:#0b1a12; color:var(--txt); }
+  button { background:var(--ok); color:#04120b; font-weight:700; border:none; cursor:pointer; padding:9px 18px; }
+  label { color:var(--faible); font-size:.85rem; display:block; margin:8px 0 2px; }
+  .ligne { display:flex; gap:14px; flex-wrap:wrap; align-items:end; }
+  .muted { color:var(--faible); font-size:.85rem; }
+</style>
+</head>
+<body>
+<h1>Test de récupération des cotes PMU Play</h1>
+<p class="muted">Ouvrez cette page depuis votre connexion habituelle (double-clic sur le fichier, aucune installation).
+Elle appelle l'API officielle utilisée par PMU Play et affiche les deux cotes de chaque cheval :
+<strong>dernierRapportReference</strong> (dernière cote, cadre clair) et <strong>dernierRapportDirect</strong> (cote actuelle, cadre vert foncé).</p>
+
+<div class="carte ligne">
+  <div><label>Date de la course</label><input id="date" type="date"></div>
+  <div><label>Réunion</label><input id="reu" type="number" value="1" min="1" style="width:70px"></div>
+  <div><label>Course</label><input id="cou" type="number" value="1" min="1" style="width:70px"></div>
+  <div><button id="go">Tester la récupération</button></div>
+</div>
+
+<div class="carte" id="verdict"><p class="muted">En attente du test…</p></div>
+
+<h2>Cotes récupérées (à comparer avec PMU Play sur la même course)</h2>
+<div id="tableau" class="carte"><p class="muted">—</p></div>
+
+<h2>Détail technique</h2>
+<div class="carte"><pre id="log">—</pre></div>
+
+<script>
+const $ = id => document.getElementById(id);
+$("date").valueAsDate = new Date();
+const journal = [];
+function log(t) { journal.push(t); $("log").textContent = journal.join("\n"); }
+
+async function essai(url, etiquette) {
+  const t0 = performance.now();
+  try {
+    const r = await fetch(url, { headers: { "Accept": "application/json" } });
+    const dt = Math.round(performance.now() - t0);
+    log(`[${etiquette}] HTTP ${r.status} en ${dt} ms`);
+    log(`[${etiquette}] en-tête Access-Control-Allow-Origin : ${r.headers.get("access-control-allow-origin") ?? "(absent)"}`);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return await r.json();
+  } catch (e) {
+    log(`[${etiquette}] ÉCHEC : ${e.message}`);
+    if (e.name === "TypeError") log(`[${etiquette}] → blocage réseau, géo-restriction ou CORS (l'API n'autorise pas cette origine)`);
+    throw e;
+  }
+}
+
+$("go").addEventListener("click", async () => {
+  journal.length = 0; $("log").textContent = "";
+  const d = $("date").value.replaceAll("-", "");
+  const R = "R" + $("reu").value, C = "C" + $("cou").value;
+  const base = "https://offline.turfinfo.api.pmu.fr/rest/client/1/programme";
+  $("verdict").innerHTML = `<p class="muted">Test en cours…</p>`;
+  $("tableau").innerHTML = `<p class="muted">—</p>`;
+  try {
+    const data = await essai(`${base}/${d}/${R}/${C}/participants?specialisation=INTERNET`, "participants");
+    const parts = data.participants || [];
+    log(`[participants] ${parts.length} partants reçus`);
+    if (parts.length) {
+      log("[participants] 1er cheval brut : " + JSON.stringify(parts[0], null, 1).slice(0, 1500));
+      const drd = parts[0].dernierRapportDirect, drr = parts[0].dernierRapportReference;
+      log(`[champs] dernierRapportDirect : ${drd ? "présent" : "ABSENT"} — dernierRapportReference : ${drr ? "présent" : "ABSENT"}`);
+    }
+    $("verdict").innerHTML = `<p><span class="ok">✓ RÉUSSITE</span> — l'API PMU est accessible depuis votre navigateur, sans authentification, et le CORS autorise la lecture depuis une page web.
+    <br><span class="muted">TURFMETRICS PRO pourra récupérer les deux cotes directement, sans proxy ni backend.</span></p>`;
+    const lignes = parts.map(p => {
+      const act = p.dernierRapportDirect && p.dernierRapportDirect.rapport != null ? p.dernierRapportDirect.rapport : "N/D";
+      const ref = p.dernierRapportReference && p.dernierRapportReference.rapport != null ? p.dernierRapportReference.rapport : "N/D";
+      return `<tr><td>${p.numPmu}</td><td>${p.nom}</td><td class="c">${ref}</td><td class="c"><strong>${act}</strong></td></tr>`;
+    }).join("");
+    $("tableau").innerHTML = `<table><thead><tr><th>N°</th><th>Cheval</th><th>DERNIÈRE COTE (référence)</th><th>COTE ACTUELLE (direct)</th></tr></thead><tbody>${lignes}</tbody></table>
+    <p class="muted">Relevé à ${new Date().toLocaleTimeString("fr-FR")} — comparez ces valeurs avec les cadres clair et vert de PMU Play sur la même course.</p>`;
+  } catch (e) {
+    $("verdict").innerHTML = `<p><span class="ko">✗ ÉCHEC</span> — la récupération directe ne fonctionne pas depuis ce navigateur (${e.message}).
+    <br><span class="muted">Selon le détail technique ci-dessous : géo-restriction (connexion hors France) ou blocage CORS → la solution de repli sera un relais hébergé en France.</span></p>`;
+  }
+});
+</script>
+</body>
+</html>
