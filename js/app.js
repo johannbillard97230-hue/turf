@@ -306,7 +306,6 @@ TM.App = (() => {
 
     div.innerHTML = `
       <div class="carte-ligne1">
-        <span class="rang-medaille">${rang}</span>
         <span class="carte-id">
           <span class="num-cheval">${p.numero}</span>
           <span>
