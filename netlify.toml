@@ -1,0 +1,7 @@
+# TURFMETRICS PRO — configuration Netlify
+# Site statique + une micro-fonction proxy. Aucune étape de build.
+
+[build]
+  publish = "."
+  functions = "netlify/functions"
+  command = ""

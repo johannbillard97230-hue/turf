@@ -1,70 +1,63 @@
-# Getting Started with Create React App
+# TURFMETRICS PRO
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Application web personnelle d'analyse hippique : partants du Quinté+ du jour
+classés par **valeur décroissante** (valeur propriétaire pronostics-turf.info,
+reprise à l'identique), citations de la revue de presse, statistiques et
+sélection personnelle de 8 chevaux.
 
-## Available Scripts
+## Principes
 
-In the project directory, you can run:
+- 100 % statique : aucune base de données, aucun compte, aucun historique.
+- Les données sont récupérées à la demande (bouton « Rafraîchir les données »
+  et à l'ouverture). La sélection des 8 chevaux vit en `sessionStorage`
+  (elle disparaît à la fermeture de l'onglet).
+- Aucune donnée n'est fabriquée ni modifiée : une information indisponible
+  affiche **N/D** ; un cheval « non cité » dans la revue de presse affiche **0**.
 
-### `npm start`
+## Sources
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+| Rôle | Source | Contenu |
+|---|---|---|
+| Valeur | pronostics-turf.info — `presse-partants-pmu.php` | valeur brute publiée (« sa valeur »), âge, n° à la corde, jockey/driver, entraîneur, gains, statistiques courses / victoires / placés |
+| Citations | pronostics-turf.info — `liste-synthese-de-pronostics-turf.php` | « LISTE RÉCAPITULATIVE — Position / Numéro / Fois cité » de la revue de presse hippique |
+| Sexe/Âge & musique | Fiches Canalturf | sexe, âge, musique, 3 dernières sorties, réunion/course |
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+Les cotes ne sont pas récupérées : la source PMU (géo-restreinte) a été
+abandonnée et aucune cote n'est affichée.
 
-### `npm test`
+Les pages pronostics-turf.info sont publiées en windows-1252 : la couche de
+récupération détecte automatiquement le charset (UTF-8 strict, sinon
+windows-1252) et les proxys relaient les octets bruts sans conversion.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Déploiement (Netlify ou Vercel)
 
-### `npm run build`
+Le dossier est prêt tel quel — **aucune étape de build**.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- **Netlify** : glisser-déposer le dossier sur app.netlify.com/drop
+  (ou `netlify deploy`). `netlify.toml` déclare déjà la fonction proxy.
+- **Vercel** : `vercel` à la racine. La fonction `api/proxy.js` est détectée
+  automatiquement.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+La micro-fonction proxy (`netlify/functions/proxy.js` / `api/proxy.js`) relaie
+uniquement des GET vers les domaines autorisés (pronostics-turf.info,
+Canalturf) afin de contourner le blocage CORS du navigateur. Sans elle,
+l'accès direct est bloqué par le navigateur.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Structure
 
-### `npm run eject`
+```
+index.html                  application (page unique)
+css/style.css               identité visuelle
+js/sources.js               connecteurs + parseurs (aucune donnée inventée)
+js/classement.js            tri verrouillé — valeur décroissante
+js/app.js                   orchestration, sélection 8 chevaux, rapport
+netlify/functions/proxy.js  proxy Netlify
+api/proxy.js                proxy Vercel
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## Valeur & classement
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+La valeur affichée est la valeur brute publiée par pronostics-turf.info —
+aucune pondération, aucun recalcul. Le classement est verrouillé : valeur
+décroissante, puis citations décroissantes, puis numéro croissant en cas
+d'égalité. Jamais de tri sur les cotes.
