@@ -397,7 +397,7 @@ body {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.88rem;
-  min-width: 980px;
+  min-width: 1060px;
   table-layout: fixed;
 }
 
@@ -415,14 +415,27 @@ body {
 
 /* largeurs fixes (table-layout: fixed) */
 .col-sel { width: 46px; }
-.col-nom { width: 19%; }
-.col-valeur { width: 12%; }
-.col-cit { width: 8%; }
-.col-corde { width: 6%; }
-.col-def { width: 8%; }
+.col-nom { width: 17%; }
+.col-valeur { width: 11%; }
+.col-cit { width: 7%; }
+.col-corde { width: 5%; }
+.col-def { width: 7%; }
+.col-coted, .col-cotea { width: 7%; }
+/* ces deux en-têtes peuvent passer sur deux lignes plutôt que déborder */
+.partants thead th.col-coted, .partants thead th.col-cotea { white-space: normal; line-height: 1.25; }
 .col-sexe { width: 9%; }
-.col-taux { width: 18%; }
+.col-taux { width: 16%; }
 .col-sorties { width: auto; }
+
+/* cotes PMU (relevées par Canalturf, ~toutes les 10 min) */
+.cote-chiffre {
+  font-family: var(--fonte-mono);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--texte-doux);
+  white-space: nowrap;
+}
+.col-cotea .cote-chiffre { color: var(--dore); font-size: 1.05rem; }
 
 /* corde : numéro à la corde */
 .corde-num {

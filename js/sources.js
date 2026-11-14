@@ -303,6 +303,10 @@ TM.Sources = (() => {
       allocation: null,
       depart: null
     };
+    // Lien vers la page « pronostics » de la course : on en déduit
+    // mécaniquement l'URL « /cotes/ » (évolution des cotes PMU).
+    const lienCourse = doc.querySelector("a[href*='/pronostics-PMU/']");
+    if (lienCourse) course.urlCotes = (lienCourse.getAttribute("href") || "").replace("/pronostics-PMU/", "/cotes/") || null;
     const mDisc = corps.match(/course de ([A-ZÀ-Ý ]+?)\s*,\s*courue sur ([\d ]+)m avec une allocation de ([\d.,]+)\s*€/);
     if (mDisc) {
       course.discipline = mDisc[1].trim();
@@ -473,6 +477,43 @@ TM.Sources = (() => {
   }
 
   /* ============================================================
+     SOURCE CANALTURF — page /cotes/ (évolution des cotes PMU)
+     La page embarque, par cheval, l'historique horodaté des cotes
+     PMU (points toutes les ~10 minutes, ex. {"elapsed":"20:30",
+     "value":6.1}). On en tire, pour chaque numéro de cheval :
+       - coteActuelle : dernier point de la série
+       - cotePrecedente : point précédent (N/D si un seul point)
+       - heureCotes : heure du dernier relevé publiée par la source
+     Aucune valeur n'est fabriquée : série absente → tout à null.
+     ============================================================ */
+
+  function parsePageCotes(texte) {
+    const cotes = {};
+    let heureMax = null;
+    const reSerie = /var\s+cote_data_(\d+)\s*=\s*\[([\s\S]*?)\];/g;
+    let m;
+    while ((m = reSerie.exec(texte)) !== null) {
+      const numero = parseInt(m[1], 10);
+      const points = [];
+      const rePoint = /\{\s*"elapsed"\s*:\s*"([\d:]+)"\s*,\s*"value"\s*:\s*([\d.]+)\s*\}/g;
+      let pt;
+      while ((pt = rePoint.exec(m[2])) !== null) {
+        const v = parseFloat(pt[2]);
+        if (Number.isFinite(v)) points.push({ heure: pt[1], valeur: v });
+      }
+      if (!points.length) continue;
+      const dernier = points[points.length - 1];
+      cotes[numero] = {
+        coteActuelle: dernier.valeur,
+        cotePrecedente: points.length > 1 ? points[points.length - 2].valeur : null,
+        heureCotes: dernier.heure
+      };
+      if (!heureMax || dernier.heure > heureMax) heureMax = dernier.heure;
+    }
+    return { cotes, heureMax };
+  }
+
+  /* ============================================================
      Orchestration d'une actualisation complète
      ============================================================ */
 
@@ -481,7 +522,8 @@ TM.Sources = (() => {
     const statuts = {
       valeur:    { nom: "pronostics-turf.info — valeurs des partants", etat: "attente", detail: "" },
       citations: { nom: "pronostics-turf.info — citations (revue de presse)", etat: "attente", detail: "" },
-      fiches:    { nom: "Canalturf — fiches chevaux (sexe/âge, musique, sorties)", etat: "attente", detail: "" }
+      fiches:    { nom: "Canalturf — fiches chevaux (sexe/âge, musique, sorties)", etat: "attente", detail: "" },
+      cotes:     { nom: "Canalturf — cotes PMU (dernière / actuelle)", etat: "attente", detail: "" }
     };
 
     // 1. VALEURS : page presse-partants (source propriétaire — critique)
@@ -570,8 +612,38 @@ TM.Sources = (() => {
       ? "page Quinté Canalturf indisponible — aucune fiche accessible"
       : `${ok}/${partants.length} fiches récupérées`;
 
+    // 3c. COTES PMU : page /cotes/ de Canalturf (lien dérivé de la
+    // page Quinté). Avant l'ouverture des relevés (environ 2 h avant
+    // la course), la page n'a pas encore de séries → N/D partout,
+    // jamais de valeur fabriquée.
+    etape("Récupération des cotes PMU (Canalturf)…");
+    if (courseCT && courseCT.urlCotes) {
+      try {
+        const { texte } = await fetchTexte(courseCT.urlCotes, erreurs, "Canalturf — cotes PMU");
+        const { cotes, heureMax } = parsePageCotes(texte);
+        if (!Object.keys(cotes).length) throw new Error("aucune série de cotes publiée pour le moment");
+        let nbCotes = 0;
+        for (const p of partants) {
+          const c = cotes[p.numero];
+          p.coteActuelle = c ? c.coteActuelle : null;
+          p.cotePrecedente = c ? c.cotePrecedente : null;
+          p.heureCotes = c ? c.heureCotes : null;
+          if (c) nbCotes++;
+        }
+        course.heureCotes = heureMax;
+        statuts.cotes.etat = nbCotes === partants.length ? "ok" : "partiel";
+        statuts.cotes.detail = `${nbCotes}/${partants.length} chevaux cotés — dernier relevé ${heureMax || "N/D"}`;
+      } catch (e) {
+        statuts.cotes.etat = "ko";
+        statuts.cotes.detail = e.message;
+      }
+    } else {
+      statuts.cotes.etat = "ko";
+      statuts.cotes.detail = "lien vers la page cotes introuvable sur la page Quinté";
+    }
+
     return { course, partants, statuts, erreurs };
   }
 
-  return { actualiserTout, parsePressePartants, parseSynthesePresse, parsePageQuinte, parsePagePronostic, parseFicheCheval };
+  return { actualiserTout, parsePressePartants, parseSynthesePresse, parsePageQuinte, parsePagePronostic, parsePageCotes, parseFicheCheval };
 })();

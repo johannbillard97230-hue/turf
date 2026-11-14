@@ -21,9 +21,15 @@ sélection personnelle de 8 chevaux.
 | Valeur | pronostics-turf.info — `presse-partants-pmu.php` | valeur brute publiée (« sa valeur »), âge, n° à la corde, jockey/driver, entraîneur, gains, statistiques courses / victoires / placés, déferrage de la course du jour |
 | Citations | pronostics-turf.info — `liste-synthese-de-pronostics-turf.php` | « LISTE RÉCAPITULATIVE — Position / Numéro / Fois cité » de la revue de presse hippique |
 | Sexe/Âge & musique | Fiches Canalturf | sexe, âge, musique, 3 dernières sorties, réunion/course |
+| Cotes PMU | Canalturf — page « /cotes/ » de la course | historique horodaté des cotes PMU par cheval (relevés ~toutes les 10 min) : « Cote actuelle » = dernier relevé, « Dernière cote » = relevé précédent, heure du relevé affichée |
 
-Les cotes ne sont pas récupérées : la source PMU (géo-restreinte) a été
-abandonnée et aucune cote n'est affichée.
+Les cotes ne sont pas lues directement sur PMU : l'API officielle est
+géo-restreinte à la France et inaccessible depuis les fonctions Netlify
+(hébergées hors de France). La page Canalturf, déjà utilisée par
+l'application, publie le même flux de cotes PMU avec historique — elle est
+donc la source retenue. Si la série n'est pas encore publiée (plus de ~2 h
+avant la course) ou si un cheval n'a qu'un seul relevé, la colonne affiche
+**N/D** — aucune cote n'est estimée.
 
 Les pages pronostics-turf.info sont publiées en windows-1252 : la couche de
 récupération détecte automatiquement le charset (UTF-8 strict, sinon
@@ -73,3 +79,7 @@ d'égalité. Jamais de tri sur les cotes.
 - **Colonne Déferrage** : déferrage de la course du jour — `D4` (déferré des 4),
   `DA` (antérieur), `DP` (postérieur), `—` (non déferré), `N/D` si la source
   ne le précise pas (aucune valeur inventée).
+- **Dernière cote / Cote actuelle** : cotes PMU relevées par Canalturf
+  (format PMU Play : 2,9 / 8,8 / 71 — décimales respectées). L'heure du
+  dernier relevé figure dans l'encadré de la course (« Cotes relevées à »).
+  Avant l'ouverture des relevés (~2 h avant le départ), N/D est affiché.

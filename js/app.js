@@ -109,7 +109,8 @@ TM.App = (() => {
     const correspondance = {
       valeur: statuts.valeur,
       citations: statuts.citations,
-      fiches: statuts.fiches
+      fiches: statuts.fiches,
+      cotes: statuts.cotes
     };
     document.querySelectorAll(".source-pill").forEach(pill => {
       const s = correspondance[pill.dataset.source];
@@ -136,6 +137,9 @@ TM.App = (() => {
     $("fact-distance").textContent = course.distance || "N/D";
     $("fact-allocation").textContent = course.allocation || "N/D";
     $("fact-discipline").textContent = course.discipline || "N/D";
+    // Heure du dernier relevé de cotes publié par la source (Canalturf)
+    const elCotes = $("fact-cotes-heure");
+    if (elCotes) elCotes.textContent = course.heureCotes ? course.heureCotes : "N/D";
   }
 
   function renduTaux(p) {
@@ -210,6 +214,16 @@ TM.App = (() => {
     if (dist.vic) h += `<span class="distinction dist-vic" title="Plus grand nombre de victoires parmi les partants (ex æquo inclus)">★ Max victoires</span>`;
     if (dist.plc) h += `<span class="distinction dist-plc" title="Plus grand nombre de places parmi les partants (ex æquo inclus)">◆ Max places</span>`;
     return h ? `<span class="distinctions">${h}</span>` : "";
+  }
+
+  /* Cotes PMU relevées par Canalturf : « actuelle » = dernier point
+     de la série horodatée, « dernière » = point précédent.
+     Format identique à PMU Play (2.9, 8.8, 71) ; N/D si la source
+     n'a pas de valeur — rien n'est inventé. */
+  function renduCote(valeur, heure) {
+    if (valeur == null) return afficheND();
+    const titre = heure ? ` title="Relevé ${echappe(heure)} (source Canalturf)"` : "";
+    return `<span class="cote-chiffre"${titre}>${String(valeur).replace(".", ",")}</span>`;
   }
 
   function renduSexeAge(p) {
@@ -287,6 +301,8 @@ TM.App = (() => {
       </td>
       <td class="col-corde">${renduCorde(p)}</td>
       <td class="col-def">${renduDeferrage(p)}</td>
+      <td class="col-coted">${renduCote(p.cotePrecedente, p.heureCotes)}</td>
+      <td class="col-cotea">${renduCote(p.coteActuelle, p.heureCotes)}</td>
       <td class="col-sexe">${renduSexeAge(p)}</td>
       <td class="col-taux"><div class="taux">${renduTaux(p)}${dist ? badgesDistinction(dist) : ""}</div></td>
       <td class="col-sorties"><div class="sorties">${renduSorties(p)}</div></td>`;
@@ -322,6 +338,8 @@ TM.App = (() => {
         <span><span class="etiquette">Citations</span>${renduCitations(p)}</span>
         <span><span class="etiquette">Corde</span>${renduCorde(p)}</span>
         <span><span class="etiquette">Déferrage</span>${renduDeferrage(p)}</span>
+        <span><span class="etiquette">Dernière cote</span>${renduCote(p.cotePrecedente, p.heureCotes)}</span>
+        <span><span class="etiquette">Cote actuelle</span>${renduCote(p.coteActuelle, p.heureCotes)}</span>
         <span><span class="etiquette">Sexe · Âge</span>${renduSexeAge(p)}</span>
         <span><span class="etiquette">Taux de réussite</span>${t ? `<span class="pourcent" style="font-family:var(--fonte-mono);color:var(--emeraude);font-weight:600">${t.pourcent.toFixed(1).replace(".", ",")}%</span> <span class="detail">(${t.victoires} V + ${t.places} P) / ${t.courses}</span>` : afficheND()}${dist ? badgesDistinction(dist) : ""}</span>
         <span class="sorties"><span class="etiquette">3 dernières sorties</span>${renduSorties(p)}</span>
@@ -342,7 +360,7 @@ TM.App = (() => {
     cartes.innerHTML = "";
 
     if (!partantsTries.length) {
-      tbody.innerHTML = `<tr class="ligne-etat"><td colspan="9">Aucun partant récupéré. Consultez le rapport de récupération.</td></tr>`;
+      tbody.innerHTML = `<tr class="ligne-etat"><td colspan="11">Aucun partant récupéré. Consultez le rapport de récupération.</td></tr>`;
       return;
     }
 
@@ -420,7 +438,7 @@ TM.App = (() => {
     btn.disabled = true;
     btn.classList.add("charge");
     $("loader").hidden = false;
-    majSources({ valeur: { etat: "attente" }, citations: { etat: "attente" }, fiches: { etat: "attente" } }, true);
+    majSources({ valeur: { etat: "attente" }, citations: { etat: "attente" }, fiches: { etat: "attente" }, cotes: { etat: "attente" } }, true);
 
     const etape = txt => { $("loader-text").textContent = txt; };
 
