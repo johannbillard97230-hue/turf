@@ -16,7 +16,8 @@ TM.App = (() => {
 
   const etat = {
     partantsTries: [],
-    chargementEnCours: false
+    chargementEnCours: false,
+    favoris: new Set()
   };
 
   /* ---------- Sélection (session du navigateur) ---------- */
@@ -37,14 +38,53 @@ TM.App = (() => {
     let sel = lireSelection();
     if (sel.includes(numero)) {
       sel = sel.filter(n => n !== numero);
+      // Retrait volontaire du favori : respecté jusqu'à la fin de session
+      if (etat.favoris.has(numero)) sessionStorage.setItem(`${CLE_SESSION}.retire.${numero}`, "1");
     } else {
       if (sel.length >= MAX_SELECTION) return false; // bloqué à 8
       sel.push(numero);
+      sessionStorage.removeItem(`${CLE_SESSION}.retire.${numero}`);
     }
     ecrireSelection(sel);
     majSelectionUI();
     majCasesTableau();
     return true;
+  }
+
+  /* ---------- Favori de la course ----------
+     Le favori est le cheval dont la COTE ACTUELLE est la plus faible
+     (donnée réelle issue des relevés PMU/Canalturf — les cotes ne
+     servent JAMAIS à classer le tableau, uniquement à identifier le
+     favori). Ex æquo : tous les chevaux à la cote minimale.
+     Sans cotes publiées : aucun favori, rien n'est deviné. */
+
+  function numerosFavoris(partants) {
+    let min = null;
+    for (const p of partants) {
+      if (p.coteActuelle == null) continue;
+      if (min === null || p.coteActuelle < min) min = p.coteActuelle;
+    }
+    if (min === null) return new Set();
+    return new Set(partants.filter(p => p.coteActuelle === min).map(p => p.numero));
+  }
+
+  // Sélection automatique : le favori est ajouté à la sélection (dans
+  // la limite des 8) dès que les cotes sont disponibles. L'utilisateur
+  // peut le retirer manuellement à tout moment — sa décision est
+  // respectée pour la session (le favori n'est pas ré-imposé).
+  function synchroniserFavori(favoris) {
+    if (!favoris.size) return;
+    let sel = lireSelection();
+    let modifie = false;
+    for (const num of favoris) {
+      if (sel.includes(num)) continue;
+      const cleRetrait = `${CLE_SESSION}.retire.${num}`;
+      if (sessionStorage.getItem(cleRetrait)) continue; // retiré volontairement
+      if (sel.length >= MAX_SELECTION) break;
+      sel.push(num);
+      modifie = true;
+    }
+    if (modifie) ecrireSelection(sel);
   }
 
   function majSelectionUI() {
@@ -232,13 +272,19 @@ TM.App = (() => {
     return afficheND();
   }
 
+  function badgeFavori(p) {
+    if (!etat.favoris.has(p.numero)) return "";
+    const cote = p.coteActuelle != null ? String(p.coteActuelle).replace(".", ",") : "N/D";
+    return `<span class="favori-badge" title="Favori de la course — cote actuelle ${cote} (plus faible cote PMU relevée)">★ Favori</span>`;
+  }
+
   function ligneIdentite(p) {
     const duo = [p.jockey, p.entraineur].filter(Boolean).join(" · ");
     return `
       <span class="identite">
         <span class="num-cheval">${p.numero}</span>
         <span>
-          <span class="nom-cheval">${echappe(p.nom)}</span>
+          <span class="nom-cheval">${echappe(p.nom)}</span>${badgeFavori(p)}
           <span class="jockey">${duo ? echappe(duo) : ""}</span>
         </span>
       </span>`;
@@ -274,6 +320,7 @@ TM.App = (() => {
     if (rang <= 10) tr.classList.add("top10");
     if (dist && dist.vic) tr.classList.add("dist-v");
     if (dist && dist.plc) tr.classList.add("dist-p");
+    if (etat.favoris.has(p.numero)) tr.classList.add("favori");
 
     const largeurValeur = valeurMax > 0 && p.valeur != null ? Math.max(3, Math.round((p.valeur / valeurMax) * 100)) : 0;
     const largeurCit = citMax > 0 && p.citations != null ? Math.max(3, Math.round((p.citations / citMax) * 100)) : 0;
@@ -314,6 +361,7 @@ TM.App = (() => {
     div.className = "carte-cheval" + (rang <= 10 ? " top10" : "");
     if (dist && dist.vic) div.classList.add("dist-v");
     if (dist && dist.plc) div.classList.add("dist-p");
+    if (etat.favoris.has(p.numero)) div.classList.add("favori");
     div.dataset.numero = p.numero;
     const largeurValeur = valeurMax > 0 && p.valeur != null ? Math.max(3, Math.round((p.valeur / valeurMax) * 100)) : 0;
     const t = TM.Classement.tauxReussite(p);
@@ -325,7 +373,7 @@ TM.App = (() => {
         <span class="carte-id">
           <span class="num-cheval">${p.numero}</span>
           <span>
-            <span class="nom-cheval">${echappe(p.nom)}</span>
+            <span class="nom-cheval">${echappe(p.nom)}</span>${badgeFavori(p)}
             <span class="jockey">${duo ? echappe(duo) : ""}</span>
           </span>
         </span>
@@ -367,6 +415,12 @@ TM.App = (() => {
     const valeurMax = Math.max(...partantsTries.map(p => p.valeur == null ? 0 : p.valeur), 0);
     const citMax = Math.max(...partantsTries.map(p => p.citations == null ? 0 : p.citations), 0);
     const distinctions = calculDistinctions(partantsTries);
+
+    // Favori (plus faible cote actuelle) : mis en évidence et ajouté
+    // automatiquement à la sélection (dans la limite des 8, sans
+    // ré-imposer un favori retiré volontairement).
+    etat.favoris = numerosFavoris(partantsTries);
+    synchroniserFavori(etat.favoris);
 
     partantsTries.forEach((p, i) => {
       const dist = distinctions(p);

@@ -477,6 +477,25 @@ tr.dist-p:not(.dist-v) { box-shadow: inset 3px 0 0 var(--turquoise); }
 .dist-vic { background: rgba(242, 194, 48, 0.14); color: var(--dore); border: 1px solid rgba(242, 194, 48, 0.45); }
 .dist-plc { background: rgba(64, 196, 216, 0.13); color: var(--turquoise); border: 1px solid rgba(64, 196, 216, 0.45); }
 
+/* favori de la course : plus faible cote actuelle (donnée réelle) */
+.favori-badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(242, 194, 48, 0.2);
+  color: var(--dore);
+  border: 1px solid var(--dore);
+  vertical-align: 2px;
+  white-space: nowrap;
+}
+tr.favori { background: rgba(242, 194, 48, 0.06); }
+tr.favori:hover { background: rgba(242, 194, 48, 0.1); }
+
 .partants tbody td {
   padding: 12px 10px;
   border-bottom: 1px solid rgba(29, 59, 42, 0.55);
@@ -678,6 +697,7 @@ tr[data-rang="3"] .valeur-chiffre { text-shadow: 0 0 16px rgba(242, 194, 48, 0.4
   .carte-cheval.selectionne { border-color: var(--dore-sombre); background: rgba(242, 194, 48, 0.07); }
   .carte-cheval.dist-v { box-shadow: inset 3px 0 0 var(--dore); }
   .carte-cheval.dist-p:not(.dist-v) { box-shadow: inset 3px 0 0 var(--turquoise); }
+  .carte-cheval.favori { border-color: var(--dore-sombre); }
 
   .carte-ligne1 { display: flex; align-items: center; gap: 10px; }
   .carte-id { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; }

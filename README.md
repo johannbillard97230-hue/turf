@@ -79,6 +79,12 @@ d'égalité. Jamais de tri sur les cotes.
 - **Colonne Déferrage** : déferrage de la course du jour — `D4` (déferré des 4),
   `DA` (antérieur), `DP` (postérieur), `—` (non déferré), `N/D` si la source
   ne le précise pas (aucune valeur inventée).
+- **Favori** : le cheval à la plus faible cote actuelle (donnée réelle des
+  relevés PMU/Canalturf) est marqué d'un badge « ★ Favori » et ajouté
+  automatiquement à la sélection des 8 dès que les cotes sont publiées
+  (ex æquo : tous les chevaux à la cote minimale). Un retrait manuel est
+  respecté jusqu'à la fin de la session. Sans cotes : aucun favori. Les
+  cotes ne modifient jamais le classement par valeur.
 - **Dernière cote / Cote actuelle** : cotes PMU relevées par Canalturf
   (format PMU Play : 2,9 / 8,8 / 71 — décimales respectées). L'heure du
   dernier relevé figure dans l'encadré de la course (« Cotes relevées à »).

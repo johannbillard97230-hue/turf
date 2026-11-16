@@ -621,7 +621,14 @@ TM.Sources = (() => {
       try {
         const { texte } = await fetchTexte(courseCT.urlCotes, erreurs, "Canalturf — cotes PMU");
         const { cotes, heureMax } = parsePageCotes(texte);
-        if (!Object.keys(cotes).length) throw new Error("aucune série de cotes publiée pour le moment");
+        if (!Object.keys(cotes).length) {
+          // Cas normal en début de journée : la page répond mais les
+          // relevés ne commencent qu'environ 2 h avant le départ.
+          // Ce n'est pas une panne → pastille orange, pas rouge.
+          statuts.cotes.etat = "partiel";
+          statuts.cotes.detail = "aucune série publiée pour le moment — les relevés commencent environ 2 h avant le départ, relancez une actualisation plus tard";
+          return { course, partants, statuts, erreurs };
+        }
         let nbCotes = 0;
         for (const p of partants) {
           const c = cotes[p.numero];
