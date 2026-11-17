@@ -18,6 +18,10 @@ TM.Sources = (() => {
   const URL_LISTE_SYNTHESE = "https://www.pronostics-turf.info/liste-synthese-de-pronostics-turf.php";
   // Compléments : fiches chevaux (sexe, musique, dernières sorties)
   const URL_QUINTE = "https://www.canalturf.com/courses_quinte.php";
+  // Numéros de corde des courses de PLAT (absents des deux sources
+  // ci-dessus qui sont orientées trot) : turf-fr.com les publie dans
+  // la fiche « partants » de chaque course.
+  const URL_TURF_FR_QUINTE = "https://www.turf-fr.com/quinte/";
 
   // pronostics-turf.info publie ses pages en iso-8859-1 / windows-1252
   const ENCODAGE_PT = "windows-1252";
@@ -529,6 +533,47 @@ TM.Sources = (() => {
   }
 
   /* ============================================================
+     SOURCE TURF-FR.COM — numéro de corde des courses de PLAT
+     La page /quinte/ renvoie vers la fiche « partants » de la
+     course du jour ; chaque ligne y indique le dossard et la
+     méta « … · Corde N ». Le numéro de corde est une donnée
+     réelle publiée : il est lu tel quel, jamais déduit.
+     ============================================================ */
+
+  // Page /quinte/ → URL de la fiche course du jour.
+  // Deux ancres possibles, dans l'ordre : le JSON-LD « SportsEvent »
+  // (url canonique) puis le premier lien complet /course/AAAA-MM-JJ/rNcM-…
+  function parsePageTurfFrQuinte(texte) {
+    let m = texte.match(/"url"\s*:\s*"https:\/\/www\.turf-fr\.com(\/course\/\d{4}-\d{2}-\d{2}\/r\d+c\d+[^"]*)"/);
+    if (m) return "https://www.turf-fr.com" + m[1];
+    m = texte.match(/href="(\/course\/\d{4}-\d{2}-\d{2}\/r\d+c\d+[^"]*)"/);
+    if (m) return "https://www.turf-fr.com" + m[1];
+    return null;
+  }
+
+  // Fiche course → correspondance numéro (dossard) → n° de corde.
+  // La page duplique son contenu (versions bureau / mobile) : la
+  // correspondance est dédoublonnée par numéro. Si deux valeurs
+  // contradictoires apparaissent pour un même numéro, la corde est
+  // jugée inexploitable pour ce numéro (null → N/D, rien d'inventé).
+  function parsePartantsTurfFr(texte) {
+    const cordes = {};
+    const re = /<tr[^>]*data-tri-num="(\d+)"[\s\S]*?partants-horse-meta">[^<]*?Corde\s+(\d+)[^<]*<\/p>/g;
+    let m;
+    while ((m = re.exec(texte)) !== null) {
+      const numero = parseInt(m[1], 10);
+      const corde = parseInt(m[2], 10);
+      if (!Number.isFinite(numero) || !Number.isFinite(corde)) continue;
+      if (cordes[numero] !== undefined && cordes[numero] !== corde) {
+        cordes[numero] = null; // contradiction détectée : on ne tranche pas
+      } else {
+        cordes[numero] = corde;
+      }
+    }
+    return cordes;
+  }
+
+  /* ============================================================
      Orchestration d'une actualisation complète
      ============================================================ */
 
@@ -538,7 +583,8 @@ TM.Sources = (() => {
       valeur:    { nom: "pronostics-turf.info — valeurs des partants", etat: "attente", detail: "" },
       citations: { nom: "pronostics-turf.info — citations (revue de presse)", etat: "attente", detail: "" },
       fiches:    { nom: "Canalturf — fiches chevaux (sexe/âge, musique, sorties)", etat: "attente", detail: "" },
-      cotes:     { nom: "Canalturf — cotes PMU (dernière / actuelle)", etat: "attente", detail: "" }
+      cotes:     { nom: "Canalturf — cotes PMU (dernière / actuelle)", etat: "attente", detail: "" },
+      corde:     { nom: "turf-fr.com — n° de corde (courses de plat)", etat: "attente", detail: "" }
     };
 
     // 1. VALEURS : page presse-partants (source propriétaire — critique)
@@ -642,19 +688,19 @@ TM.Sources = (() => {
           // Ce n'est pas une panne → pastille orange, pas rouge.
           statuts.cotes.etat = "partiel";
           statuts.cotes.detail = "aucune série publiée pour le moment — les relevés commencent environ 2 h avant le départ, relancez une actualisation plus tard";
-          return { course, partants, statuts, erreurs };
+        } else {
+          let nbCotes = 0;
+          for (const p of partants) {
+            const c = cotes[p.numero];
+            p.coteActuelle = c ? c.coteActuelle : null;
+            p.cotePrecedente = c ? c.cotePrecedente : null;
+            p.heureCotes = c ? c.heureCotes : null;
+            if (c) nbCotes++;
+          }
+          course.heureCotes = heureMax;
+          statuts.cotes.etat = nbCotes === partants.length ? "ok" : "partiel";
+          statuts.cotes.detail = `${nbCotes}/${partants.length} chevaux cotés — dernier relevé ${heureMax || "N/D"}`;
         }
-        let nbCotes = 0;
-        for (const p of partants) {
-          const c = cotes[p.numero];
-          p.coteActuelle = c ? c.coteActuelle : null;
-          p.cotePrecedente = c ? c.cotePrecedente : null;
-          p.heureCotes = c ? c.heureCotes : null;
-          if (c) nbCotes++;
-        }
-        course.heureCotes = heureMax;
-        statuts.cotes.etat = nbCotes === partants.length ? "ok" : "partiel";
-        statuts.cotes.detail = `${nbCotes}/${partants.length} chevaux cotés — dernier relevé ${heureMax || "N/D"}`;
       } catch (e) {
         statuts.cotes.etat = "ko";
         statuts.cotes.detail = e.message;
@@ -664,8 +710,41 @@ TM.Sources = (() => {
       statuts.cotes.detail = "lien vers la page cotes introuvable sur la page Quinté";
     }
 
+    // 3d. CORDE DES COURSES DE PLAT : pronostics-turf.info ne publie
+    // le n° de corde qu'en attelé (« Poteau ») — en plat il est remplacé
+    // par le poids. turf-fr.com le publie dans sa fiche « partants ».
+    // La détection du plat se fait sur les données réelles (poids
+    // présent, poteau absent), jamais sur le libellé de discipline.
+    const estPlat = partants.some(p => p.poids != null) && !partants.some(p => p.poteau != null);
+    if (!estPlat) {
+      // Attelé : la corde est déjà lue dans la source des valeurs.
+      statuts.corde.etat = "na";
+      statuts.corde.detail = "course attelée — numéros à la corde déjà fournis par la source des valeurs";
+    } else {
+      etape("Récupération des numéros de corde (turf-fr.com)…");
+      try {
+        const { texte: pageQuinteTfr } = await fetchTexte(URL_TURF_FR_QUINTE, erreurs, "turf-fr.com — page Quinté");
+        const urlCourse = parsePageTurfFrQuinte(pageQuinteTfr);
+        if (!urlCourse) throw new Error("lien vers la fiche course introuvable sur turf-fr.com/quinte/");
+        const { texte: pageCourseTfr } = await fetchTexte(urlCourse, erreurs, "turf-fr.com — fiche course");
+        const cordes = parsePartantsTurfFr(pageCourseTfr);
+        let nbCordes = 0;
+        for (const p of partants) {
+          p.corde = cordes[p.numero] !== undefined ? cordes[p.numero] : null;
+          if (p.corde != null) nbCordes++;
+        }
+        if (!nbCordes) throw new Error("aucun numéro de corde exploitable sur la fiche course");
+        statuts.corde.etat = nbCordes === partants.length ? "ok" : "partiel";
+        statuts.corde.detail = `${nbCordes}/${partants.length} numéros de corde récupérés`;
+      } catch (e) {
+        statuts.corde.etat = "ko";
+        statuts.corde.detail = e.message;
+        for (const p of partants) p.corde = null; // N/D affiché, rien de fabriqué
+      }
+    }
+
     return { course, partants, statuts, erreurs };
   }
 
-  return { actualiserTout, parsePressePartants, parseSynthesePresse, parsePageQuinte, parsePagePronostic, parsePageCotes, parseFicheCheval };
+  return { actualiserTout, parsePressePartants, parseSynthesePresse, parsePageQuinte, parsePagePronostic, parsePageCotes, parseFicheCheval, parsePageTurfFrQuinte, parsePartantsTurfFr };
 })();

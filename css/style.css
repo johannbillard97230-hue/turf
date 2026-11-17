@@ -444,6 +444,19 @@ body {
   color: var(--texte);
 }
 
+/* corde des courses de plat (colonne Déferrage, sans objet en plat) :
+   même pastille que le déferrage, teinte turquoise pour la distinguer */
+.corde-plat {
+  display: inline-block;
+  font-size: 0.8rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(64, 196, 216, 0.10);
+  border: 1px solid rgba(64, 196, 216, 0.45);
+  color: var(--turquoise);
+  white-space: nowrap;
+}
+
 /* déferrage de la course du jour : D4 / DA / DP / — (N/D si absent) */
 .def-code {
   display: inline-block;

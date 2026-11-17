@@ -17,7 +17,8 @@ TM.App = (() => {
   const etat = {
     partantsTries: [],
     chargementEnCours: false,
-    favoris: new Set()
+    favoris: new Set(),
+    plat: false // course de plat : la colonne Déferrage affiche la corde
   };
 
   /* ---------- Sélection (session du navigateur) ---------- */
@@ -150,7 +151,8 @@ TM.App = (() => {
       valeur: statuts.valeur,
       citations: statuts.citations,
       fiches: statuts.fiches,
-      cotes: statuts.cotes
+      cotes: statuts.cotes,
+      corde: statuts.corde
     };
     document.querySelectorAll(".source-pill").forEach(pill => {
       const s = correspondance[pill.dataset.source];
@@ -160,6 +162,12 @@ TM.App = (() => {
       if (enCours) {
         pill.classList.add("attente");
         etatTxt.textContent = "…";
+      } else if (s.etat === "na") {
+        // Source sans objet pour la course du jour (ex. turf-fr.com
+        // en attelé : la corde y est déjà lue dans les valeurs).
+        pill.classList.add("attente");
+        etatTxt.textContent = "Sans objet";
+        pill.title = s.detail || "";
       } else {
         pill.classList.add(s.etat === "ok" ? "ok" : s.etat === "partiel" ? "partiel" : "ko");
         etatTxt.textContent = s.etat === "ok" ? "✓ OK" : s.etat === "partiel" ? "Partiel" : "✗ Échec";
@@ -180,10 +188,17 @@ TM.App = (() => {
     // Heure du dernier relevé de cotes publié par la source (Canalturf)
     const elCotes = $("fact-cotes-heure");
     if (elCotes) elCotes.textContent = course.heureCotes ? course.heureCotes : "N/D";
-    // En-tête Corde ↔ Poids selon la donnée réellement publiée
+    // En-têtes adaptés à la discipline réellement publiée :
+    //   attelé → « Corde » (poteau) + « Déferrage »
+    //   plat   → « Poids » + « Corde » (le déferrage est sans objet
+    //            en plat : sa colonne accueille le n° de corde réel,
+    //            lu sur turf-fr.com — jamais déduit ni fabriqué)
     const plat = partants.some(p => p.poids != null) && !partants.some(p => p.poteau != null);
+    etat.plat = plat;
     const th = $("th-corde");
     if (th) th.textContent = plat ? "Poids" : "Corde";
+    const thDef = $("th-def");
+    if (thDef) thDef.textContent = plat ? "Corde" : "Déferrage";
   }
 
   function renduTaux(p) {
@@ -217,7 +232,15 @@ TM.App = (() => {
     return afficheND();
   }
 
+  /* Colonne DÉFERRAGE (attelé) / CORDE (plat) : en plat le déferrage
+     est sans objet — la colonne affiche le numéro de corde réel publié
+     par turf-fr.com (« C3 », « C12 »…). N/D si la source ne l'a pas
+     fourni : rien n'est déduit du dossard ni fabriqué. */
   function renduDeferrage(p) {
+    if (etat.plat) {
+      if (p.corde == null) return afficheND();
+      return `<span class="corde-num corde-plat" title="Numéro de corde (stalles de départ) — source turf-fr.com">C${p.corde}</span>`;
+    }
     if (p.deferreCode == null) return afficheND();
     const cls = p.deferreCode === "D4" ? "def-code d4" : "def-code";
     const titreTxt = p.deferre || p.deferreInfo || "";
@@ -228,6 +251,11 @@ TM.App = (() => {
   function etiquetteCorde() {
     const th = $("th-corde");
     return th && th.textContent === "Poids" ? "Poids" : "Corde";
+  }
+
+  function etiquetteDef() {
+    const th = $("th-def");
+    return th ? th.textContent : "Déferrage";
   }
 
   /* Statistiques réelles (victoires / places) : presse-partants en
@@ -399,7 +427,7 @@ TM.App = (() => {
       <div class="carte-infos">
         <span><span class="etiquette">Citations</span>${renduCitations(p)}</span>
         <span><span class="etiquette">${etiquetteCorde()}</span>${renduCorde(p)}</span>
-        <span><span class="etiquette">Déferrage</span>${renduDeferrage(p)}</span>
+        <span><span class="etiquette">${etiquetteDef()}</span>${renduDeferrage(p)}</span>
         <span><span class="etiquette">Dernière cote</span>${renduCote(p.cotePrecedente, p.heureCotes)}</span>
         <span><span class="etiquette">Cote actuelle</span>${renduCote(p.coteActuelle, p.heureCotes)}</span>
         <span><span class="etiquette">Sexe · Âge</span>${renduSexeAge(p)}</span>
@@ -467,7 +495,11 @@ TM.App = (() => {
     const details = [];
     for (const cle of Object.keys(statuts)) {
       const s = statuts[cle];
-      details.push({ txt: `${s.nom} : ${s.etat === "ok" ? "opérationnel" : s.etat === "partiel" ? "partiellement opérationnel" : "indisponible"}${s.detail ? " — " + s.detail : ""}`, erreur: s.etat === "ko" });
+      const libelle = s.etat === "ok" ? "opérationnel"
+        : s.etat === "partiel" ? "partiellement opérationnel"
+        : s.etat === "na" ? "sans objet pour cette course"
+        : "indisponible";
+      details.push({ txt: `${s.nom} : ${libelle}${s.detail ? " — " + s.detail : ""}`, erreur: s.etat === "ko" });
     }
     // Tous les canaux ont échoué → expliquer pourquoi et comment réparer
     if (nb === 0) {
@@ -506,7 +538,7 @@ TM.App = (() => {
     btn.disabled = true;
     btn.classList.add("charge");
     $("loader").hidden = false;
-    majSources({ valeur: { etat: "attente" }, citations: { etat: "attente" }, fiches: { etat: "attente" }, cotes: { etat: "attente" } }, true);
+    majSources({ valeur: { etat: "attente" }, citations: { etat: "attente" }, fiches: { etat: "attente" }, cotes: { etat: "attente" }, corde: { etat: "attente" } }, true);
 
     const etape = txt => { $("loader-text").textContent = txt; };
 

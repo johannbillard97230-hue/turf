@@ -22,6 +22,7 @@ sélection personnelle de 8 chevaux.
 | Citations | pronostics-turf.info — `liste-synthese-de-pronostics-turf.php` | « LISTE RÉCAPITULATIVE — Position / Numéro / Fois cité » de la revue de presse hippique |
 | Sexe/Âge & musique | Fiches Canalturf | sexe, âge, musique, 3 dernières sorties, réunion/course |
 | Cotes PMU | Canalturf — page « /cotes/ » de la course | historique horodaté des cotes PMU par cheval (relevés ~toutes les 10 min) : « Cote actuelle » = dernier relevé, « Dernière cote » = relevé précédent, heure du relevé affichée |
+| Corde (plat) | turf-fr.com — `/quinte/` puis fiche « partants » de la course | numéro de corde réel (stalles de départ) des courses de plat, que pronostics-turf.info ne publie pas (en plat, « Poteau » est remplacé par « Poids ») |
 
 Les cotes ne sont pas lues directement sur PMU : l'API officielle est
 géo-restreinte à la France et inaccessible depuis les fonctions Netlify
@@ -46,8 +47,8 @@ Le dossier est prêt tel quel — **aucune étape de build**.
 
 La micro-fonction proxy (`netlify/functions/proxy.js` / `api/proxy.js`) relaie
 uniquement des GET vers les domaines autorisés (pronostics-turf.info,
-Canalturf) afin de contourner le blocage CORS du navigateur. Sans elle,
-l'accès direct est bloqué par le navigateur.
+Canalturf, turf-fr.com) afin de contourner le blocage CORS du navigateur.
+Sans elle, l'accès direct est bloqué par le navigateur.
 
 ## Structure
 
@@ -78,7 +79,10 @@ d'égalité. Jamais de tri sur les cotes.
   de la valeur décroissante (la colonne « Rang » a été retirée).
 - **Colonne Déferrage** : déferrage de la course du jour — `D4` (déferré des 4),
   `DA` (antérieur), `DP` (postérieur), `—` (non déferré), `N/D` si la source
-  ne le précise pas (aucune valeur inventée).
+  ne le précise pas (aucune valeur inventée). **En course de plat**, le
+  déferrage est sans objet : la colonne devient « Corde » et affiche le
+  numéro de corde réel (`C1`…`C16`, pastille turquoise) publié par
+  turf-fr.com — jamais déduit du dossard, `N/D` si indisponible.
 - **Favori** : le cheval à la plus faible cote actuelle (donnée réelle des
   relevés PMU/Canalturf) est marqué d'un badge « ★ Favori » et ajouté
   automatiquement à la sélection des 8 dès que les cotes sont publiées
