@@ -126,6 +126,14 @@ TM.Sources = (() => {
     "0": "—"
   };
 
+  // Course de plat : la source remplace « Poteau » par « Poids » et
+  // l'icône de déferrage par une icône générique de partant — notions
+  // réservées à l'attelé. L'application affiche alors le poids dans la
+  // colonne et « — » au déferrage : rien n'est inventé.
+  function estFerConnu(cle) {
+    return Object.prototype.hasOwnProperty.call(FERS_CODE, cle);
+  }
+
   function parsePressePartants(doc) {
     const course = {
       nom: null, hippodrome: null, dateTexte: null, distance: null,
@@ -190,6 +198,7 @@ TM.Sources = (() => {
         valeur: parseInt(m[3], 10),   // valeur brute publiée — jamais modifiée
         age: entier(/Age\s*:\s*(\d+)/i),
         poteau: entier(/Poteau\s*:\s*(\d+)/i),
+        poids: champ(/Poids\s*:\s*([\d,\.]+)/i),
         jockey,
         entraineur: champ(/Entraîneur\s*:\s*(.+?)\s+-/i),
         gains: entier(/Gains\s*:\s*(\d+)/i),
@@ -197,7 +206,13 @@ TM.Sources = (() => {
         victoires: entier(/Victoires\s*:\s*(\d+)/i),
         places: entier(/Places\s*:\s*(\d+)/i),
         deferre: mFer ? (FERS[mFer[1]] || null) : null,
-        deferreCode: mFer ? (FERS_CODE[mFer[1]] || null) : null,
+        // Icône non documentée (ex. course de plat : icône générique) :
+        // déferrage « sans objet » plutôt que N/D — ce n'est pas une
+        // donnée manquante, la notion ne s'applique pas.
+        deferreCode: mFer
+          ? (FERS_CODE[mFer[1]] !== undefined ? FERS_CODE[mFer[1]] : "—")
+          : null,
+        deferreInfo: mFer && !estFerConnu(mFer[1]) ? "sans objet (course de plat)" : null,
         citations: null,   // renseigné par la liste-synthèse
         idCheval: null,    // renseigné par Canalturf (fiches)
         fiche: null

@@ -180,6 +180,10 @@ TM.App = (() => {
     // Heure du dernier relevé de cotes publié par la source (Canalturf)
     const elCotes = $("fact-cotes-heure");
     if (elCotes) elCotes.textContent = course.heureCotes ? course.heureCotes : "N/D";
+    // En-tête Corde ↔ Poids selon la donnée réellement publiée
+    const plat = partants.some(p => p.poids != null) && !partants.some(p => p.poteau != null);
+    const th = $("th-corde");
+    if (th) th.textContent = plat ? "Poids" : "Corde";
   }
 
   function renduTaux(p) {
@@ -204,16 +208,26 @@ TM.App = (() => {
     return `<span class="cit-chiffre">${p.citations}</span>`;
   }
 
+  /* Corde (attelé) ou Poids (plat) : la source publie l'un ou l'autre
+     selon la discipline — on affiche la donnée réelle, jamais un
+     numéro de corde inventé en plat. */
   function renduCorde(p) {
-    if (p.poteau == null) return afficheND();
-    return `<span class="corde-num">${p.poteau}</span>`;
+    if (p.poteau != null) return `<span class="corde-num">${p.poteau}</span>`;
+    if (p.poids != null) return `<span class="corde-num" title="Poids porté (course de plat)">${echappe(p.poids)} kg</span>`;
+    return afficheND();
   }
 
   function renduDeferrage(p) {
     if (p.deferreCode == null) return afficheND();
     const cls = p.deferreCode === "D4" ? "def-code d4" : "def-code";
-    const titre = p.deferre ? ` title="${echappe(p.deferre)}"` : "";
+    const titreTxt = p.deferre || p.deferreInfo || "";
+    const titre = titreTxt ? ` title="${echappe(titreTxt)}"` : "";
     return `<span class="${cls}"${titre}>${p.deferreCode}</span>`;
+  }
+
+  function etiquetteCorde() {
+    const th = $("th-corde");
+    return th && th.textContent === "Poids" ? "Poids" : "Corde";
   }
 
   /* Statistiques réelles (victoires / places) : presse-partants en
@@ -384,7 +398,7 @@ TM.App = (() => {
       </div>
       <div class="carte-infos">
         <span><span class="etiquette">Citations</span>${renduCitations(p)}</span>
-        <span><span class="etiquette">Corde</span>${renduCorde(p)}</span>
+        <span><span class="etiquette">${etiquetteCorde()}</span>${renduCorde(p)}</span>
         <span><span class="etiquette">Déferrage</span>${renduDeferrage(p)}</span>
         <span><span class="etiquette">Dernière cote</span>${renduCote(p.cotePrecedente, p.heureCotes)}</span>
         <span><span class="etiquette">Cote actuelle</span>${renduCote(p.coteActuelle, p.heureCotes)}</span>
