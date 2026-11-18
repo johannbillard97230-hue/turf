@@ -99,7 +99,9 @@ d'égalité. Jamais de tri sur les cotes.
   avec la date de la course affichée). Places colorées comme les sorties :
   1er vert, 2ème bleu, 3ème orange, 4ème violet, 5ème rose, 6-8 neutres.
 - **Prochaine course** : heure de départ lue telle que publiée (sans
-  conversion de fuseau horaire). Si le dernier résultat correspond à la
-  course du jour (dates ISO comparées), la course du jour est déjà courue
-  et l'heure affichée est celle du Quinté+ de demain ; sinon c'est celle
+  conversion de fuseau horaire), avec la **date réelle de la course**
+  (publiée par la source, format JJ/MM/AAAA). Si le dernier résultat
+  correspond à la course du jour (dates ISO comparées), la course du jour
+  est déjà courue et l'heure affichée est celle du Quinté+ suivant (lue
+  sur la page des pronostics de demain, date comprise) ; sinon c'est celle
   de la course du jour. N/D si la source ne la fournit pas.

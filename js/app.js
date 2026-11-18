@@ -514,7 +514,11 @@ TM.App = (() => {
     const pro = course && course.prochaineCourse;
     $("prochaine-heure").textContent = pro && pro.heure ? pro.heure : "N/D";
     const bits = [];
-    if (pro && pro.jour) bits.push(pro.jour.charAt(0).toUpperCase() + pro.jour.slice(1));
+    // Date réelle de la course (publiée par la source) plutôt qu'un
+    // libellé « aujourd'hui / demain » — repli sur le libellé si la
+    // date n'est pas disponible, jamais de date devinée.
+    if (pro && pro.dateTexte) bits.push(pro.dateTexte);
+    else if (pro && pro.jour) bits.push(pro.jour.charAt(0).toUpperCase() + pro.jour.slice(1));
     if (pro && pro.nom) bits.push(pro.nom);
     $("prochaine-nom").textContent = bits.length ? bits.join(" — ") : (pro ? "—" : "Indisponible à la source");
   }

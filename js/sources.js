@@ -623,10 +623,7 @@ TM.Sources = (() => {
     if (!arrivee.length) throw new Error("tableau d'arrivée introuvable sur la page résultat");
 
     let dateTexte = null;
-    if (dateIso) {
-      const mD = dateIso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (mD) dateTexte = `${mD[3]}/${mD[2]}/${mD[1]}`;
-    }
+    if (dateIso) dateTexte = dateTexteIso(dateIso);
     return { nom, hippodrome, dateTexte, arrivee };
   }
 
@@ -640,6 +637,13 @@ TM.Sources = (() => {
 
   const URL_LISTE_DEMAIN = "https://www.canalturf.com/courses_liste_pronostics_demain.php";
 
+  // Date ISO (AAAA-MM-JJ) → affichage JJ/MM/AAAA, sans objet Date
+  // (aucune conversion de fuseau horaire n'est appliquée).
+  function dateTexteIso(dateIso) {
+    const m = (dateIso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : null;
+  }
+
   function parsePagePronosticsDemain(texte) {
     const re = /<a class="list-group-item[^"]*" href="(https:\/\/www\.canalturf\.com\/pronostics-PMU\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
     let m;
@@ -647,10 +651,12 @@ TM.Sources = (() => {
       if (!m[2].includes("pl_quint")) continue;
       const h = m[2].match(/(\d{2}:\d{2})<br/);
       const n = m[2].match(/<strong>([^<]+)<\/strong>/);
+      const d = m[1].match(/pronostics-PMU\/(\d{4}-\d{2}-\d{2})\//);
       return {
         heure: h ? h[1] : null,
         nom: n ? n[1].trim() : null,
-        url: m[1]
+        url: m[1],
+        dateTexte: d ? dateTexteIso(d[1]) : null
       };
     }
     return null;
@@ -857,17 +863,18 @@ TM.Sources = (() => {
       && courseCT.dateDernierResultat >= courseCT.dateCourse);
     if (!courseDuJourDejaCourue) {
       // Course du jour pas encore courue : c'est elle la prochaine.
-      if (course.depart) course.prochaineCourse = { heure: course.depart, nom: course.nom || null, jour: "aujourd'hui" };
+      const dateJour = courseCT ? dateTexteIso(courseCT.dateCourse) : null;
+      if (course.depart) course.prochaineCourse = { heure: course.depart, nom: course.nom || null, jour: "aujourd'hui", dateTexte: dateJour };
       if (statuts.arrivee.etat === "ok") {
-        statuts.arrivee.detail += " — prochaine course : aujourd'hui " + (course.depart || "N/D");
+        statuts.arrivee.detail += " — prochaine course : " + (dateJour || "aujourd'hui") + " " + (course.depart || "N/D");
       }
     } else {
       try {
         const { texte: pageDemain } = await fetchTexte(URL_LISTE_DEMAIN, erreurs, "Canalturf — pronostics de demain");
         const demain = parsePagePronosticsDemain(pageDemain);
         if (!demain || !demain.heure) throw new Error("course support du prochain Quinté+ introuvable");
-        course.prochaineCourse = { heure: demain.heure, nom: demain.nom, jour: "demain" };
-        statuts.arrivee.detail += " — prochaine course : demain " + demain.heure;
+        course.prochaineCourse = { heure: demain.heure, nom: demain.nom, jour: "demain", dateTexte: demain.dateTexte || null };
+        statuts.arrivee.detail += " — prochaine course : " + (demain.dateTexte || "demain") + " " + demain.heure;
       } catch (e) {
         // L'arrivée reste affichée ; seule l'heure de la prochaine
         // course passe à N/D (rien n'est deviné).
