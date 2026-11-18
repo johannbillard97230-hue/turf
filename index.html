@@ -88,6 +88,27 @@
     </dl>
   </section>
 
+  <!-- Dernière arrivée Quinté+ + prochaine course -->
+  <section class="arrivee-prochaine" aria-label="Dernière arrivée et prochaine course">
+    <div class="card arrivee-card" aria-labelledby="titre-arrivee">
+      <h2 id="titre-arrivee">
+        <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M3 5v14h2v-6h5l-1.5-4L10 5H3zm1 2h4.5l-.9 2.4.9 1.6H4z" fill="currentColor"/><path d="M12 5c5 0 9 2.2 9 5s-4 5-9 5-9-2.2-9-5 4-5 9-5zm0 2c-4 0-7 1.6-7 3s3 3 7 3 7-1.6 7-3-3-3-7-3z" fill="currentColor"/></svg>
+        Dernière arrivée Quinté+
+      </h2>
+      <p class="arrivee-meta" id="arrivee-meta">—</p>
+      <ol class="arrivee-liste" id="arrivee-liste"></ol>
+      <p class="arrivee-nd" id="arrivee-nd" hidden>N/D — arrivée indisponible à la source, aucune valeur n'est fabriquée.</p>
+    </div>
+    <div class="card prochaine-card" aria-labelledby="titre-prochaine">
+      <h2 id="titre-prochaine">
+        <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 10.6l4.2 2.5-.8 1.3L11 13.5V7h2z" fill="currentColor"/></svg>
+        Prochaine course
+      </h2>
+      <p class="prochaine-heure" id="prochaine-heure">—</p>
+      <p class="prochaine-nom" id="prochaine-nom">—</p>
+    </div>
+  </section>
+
   <!-- Rapport de récupération -->
   <section class="card rapport-card" id="rapport-card" aria-labelledby="titre-rapport">
     <h2 id="titre-rapport">
@@ -150,7 +171,7 @@
 
   <footer class="pied">
     <p>TURFMETRICS PRO — outil personnel d'analyse hippique. Aucune base de données, aucun compte, aucune conservation hors de votre navigateur.</p>
-    <p class="pied-sources">Sources : pronostics-turf.info (valeurs des partants, citations de la revue de presse, statistiques courses / victoires / placés, n° à la corde, déferrage de la course du jour) · Canalturf (fiches chevaux : sexe/âge, musique, dernières sorties ; évolution des cotes PMU — relevés toutes les 10 minutes environ, « cote actuelle » = dernier relevé, « dernière cote » = relevé précédent) · turf-fr.com (n° de corde des courses de plat — en plat, la colonne Déferrage, sans objet, affiche la corde). « N/D » = donnée indisponible à la source — aucune valeur n'est fabriquée.</p>
+    <p class="pied-sources">Sources : pronostics-turf.info (valeurs des partants, citations de la revue de presse, statistiques courses / victoires / placés, n° à la corde, déferrage de la course du jour) · Canalturf (fiches chevaux : sexe/âge, musique, dernières sorties ; évolution des cotes PMU — relevés toutes les 10 minutes environ, « cote actuelle » = dernier relevé, « dernière cote » = relevé précédent ; arrivée du dernier Quinté+ et heure de la prochaine course) · turf-fr.com (n° de corde des courses de plat — en plat, la colonne Déferrage, sans objet, affiche la corde). « N/D » = donnée indisponible à la source — aucune valeur n'est fabriquée.</p>
     <p class="pied-formule">Les valeurs affichées sont les valeurs brutes publiées par pronostics-turf.info, reprises à l'identique — aucune pondération, aucun recalcul. Un cheval « non cité » dans la revue de presse affiche 0 citation.</p>
   </footer>
 

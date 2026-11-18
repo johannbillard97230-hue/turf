@@ -332,10 +332,30 @@ TM.Sources = (() => {
       course.distance = mDisc[2].replace(/\s/g, "") + " m";
       course.allocation = Number(mDisc[3].replace(/\s/g, "").replace(",", ".")).toLocaleString("fr-FR") + " €";
     }
-    const timeEl = doc.querySelector("time[datetime]");
-    if (timeEl) {
-      const d = new Date(timeEl.getAttribute("datetime"));
-      if (!isNaN(d)) course.depart = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    // --- Heure de départ : élément <time datetime="AAAA-MM-JJTHH:MM:SS+..">
+    //     L'heure est lue directement dans la chaîne publiée (HH:MM),
+    //     SANS conversion Date : une conversion appliquerait le fuseau
+    //     horaire du navigateur et afficherait une heure fausse.
+    for (const t of doc.querySelectorAll("time[datetime]")) {
+      const dt = t.getAttribute("datetime") || "";
+      const mH = dt.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+      if (mH) {
+        course.dateCourse = mH[1]; // repère ISO pour comparer au dernier résultat
+        course.depart = mH[2];
+        break;
+      }
+    }
+
+    // --- Dernier Quinté+ disputé : médaillon « Les dernières courses
+    //     support Quinté+ » — premier lien = résultat le plus récent.
+    //     Si sa date égale celle de la course du jour, la course du jour
+    //     est déjà courue : la « prochaine course » est celle de demain.
+    const aRes = doc.querySelector("section.course-medaillon a[href*='resultats-PMU/']");
+    if (aRes) {
+      const href = aRes.getAttribute("href") || "";
+      const mD = href.match(/resultats-PMU\/(\d{4}-\d{2}-\d{2})\//);
+      course.urlDernierResultat = href || null;
+      if (mD) course.dateDernierResultat = mD[1];
     }
 
     // --- URL de la page pronostic du jour
@@ -574,6 +594,69 @@ TM.Sources = (() => {
   }
 
   /* ============================================================
+     SOURCE CANALTURF — arrivée du dernier Quinté+ disputé
+     Le médaillon « Les dernières courses support Quinté+ » de la
+     page Quinté renvoie vers la page /resultats-PMU/ la plus
+     récente. On y lit le tableau « Résultat Pmu - Arrivée » :
+     place, dossard, nom — repris à l'identique, limité aux 8
+     premiers. Page absente ou tableau introuvable → tout à null
+     (N/D affiché, rien n'est reconstitué).
+     ============================================================ */
+
+  function parsePageResultat(texte, dateIso) {
+    // Nom et hippodrome : « Arrivée définitive du PRIX X à HIPPODROME »
+    const mTitre = texte.match(/Arrivée définitive du ([^<]+?) à ([A-ZÀ-Ý' \-]+?)</i);
+    const nom = mTitre ? mTitre[1].trim() : null;
+    const hippodrome = mTitre ? mTitre[2].trim() : null;
+
+    // Lignes du tableau d'arrivée : place / dossard / nom
+    const arrivee = [];
+    const re = /<tr><td>(\d+)(?:er|&egrave;me|ème)<\/td><td class="text-bold">(\d+)<\/td><td class="text-bold"><a [^>]*>([^<]+)<\/a><\/td>/g;
+    let m;
+    while ((m = re.exec(texte)) !== null && arrivee.length < 8) {
+      arrivee.push({
+        place: parseInt(m[1], 10),
+        numero: parseInt(m[2], 10),
+        nom: m[3].trim()
+      });
+    }
+    if (!arrivee.length) throw new Error("tableau d'arrivée introuvable sur la page résultat");
+
+    let dateTexte = null;
+    if (dateIso) {
+      const mD = dateIso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (mD) dateTexte = `${mD[3]}/${mD[2]}/${mD[1]}`;
+    }
+    return { nom, hippodrome, dateTexte, arrivee };
+  }
+
+  /* ============================================================
+     SOURCE CANALTURF — heure de la prochaine course Quinté+
+     (page « pronostics de demain »). Chaque item de réunion liste
+     les jeux proposés : celui qui porte l'icône Quinté (pl_quint)
+     est la course support du prochain Quinté+. On lit son heure
+     et son nom, tels que publiés.
+     ============================================================ */
+
+  const URL_LISTE_DEMAIN = "https://www.canalturf.com/courses_liste_pronostics_demain.php";
+
+  function parsePagePronosticsDemain(texte) {
+    const re = /<a class="list-group-item[^"]*" href="(https:\/\/www\.canalturf\.com\/pronostics-PMU\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+    let m;
+    while ((m = re.exec(texte)) !== null) {
+      if (!m[2].includes("pl_quint")) continue;
+      const h = m[2].match(/(\d{2}:\d{2})<br/);
+      const n = m[2].match(/<strong>([^<]+)<\/strong>/);
+      return {
+        heure: h ? h[1] : null,
+        nom: n ? n[1].trim() : null,
+        url: m[1]
+      };
+    }
+    return null;
+  }
+
+  /* ============================================================
      Orchestration d'une actualisation complète
      ============================================================ */
 
@@ -584,7 +667,8 @@ TM.Sources = (() => {
       citations: { nom: "pronostics-turf.info — citations (revue de presse)", etat: "attente", detail: "" },
       fiches:    { nom: "Canalturf — fiches chevaux (sexe/âge, musique, sorties)", etat: "attente", detail: "" },
       cotes:     { nom: "Canalturf — cotes PMU (dernière / actuelle)", etat: "attente", detail: "" },
-      corde:     { nom: "turf-fr.com — n° de corde (courses de plat)", etat: "attente", detail: "" }
+      corde:     { nom: "turf-fr.com — n° de corde (courses de plat)", etat: "attente", detail: "" },
+      arrivee:   { nom: "Canalturf — arrivée du dernier Quinté+", etat: "attente", detail: "" }
     };
 
     // 1. VALEURS : page presse-partants (source propriétaire — critique)
@@ -743,8 +827,57 @@ TM.Sources = (() => {
       }
     }
 
+    // 3e. ARRIVÉE DU DERNIER QUINTÉ+ + HEURE DE LA PROCHAINE COURSE
+    // Le médaillon de la page Quinté donne le dernier résultat publié.
+    // Si ce résultat est celui de la course du jour (dates égales), la
+    // course du jour est déjà courue : la prochaine course est le
+    // Quinté+ de demain (heure lue sur la page « pronostics de demain »).
+    // Sinon, la prochaine course est la course du jour elle-même.
+    course.arriveeDerniere = null;
+    course.prochaineCourse = null;
+    etape("Récupération de l'arrivée du dernier Quinté+…");
+    if (courseCT && courseCT.urlDernierResultat) {
+      try {
+        const { texte: pageRes } = await fetchTexte(courseCT.urlDernierResultat, erreurs, "Canalturf — arrivée du dernier Quinté+");
+        course.arriveeDerniere = parsePageResultat(pageRes, courseCT.dateDernierResultat);
+        statuts.arrivee.etat = "ok";
+        statuts.arrivee.detail = `arrivée du ${course.arriveeDerniere.dateTexte || "dernier Quinté+"} — ${course.arriveeDerniere.arrivee.length} premiers chevaux`;
+      } catch (e) {
+        statuts.arrivee.etat = "ko";
+        statuts.arrivee.detail = e.message;
+      }
+    } else {
+      statuts.arrivee.etat = "ko";
+      statuts.arrivee.detail = "lien vers le dernier résultat introuvable sur la page Quinté";
+    }
+
+    // Prochaine course : la comparaison se fait sur les dates publiées
+    // par la source (ISO), jamais sur l'horloge du navigateur.
+    const courseDuJourDejaCourue = !!(courseCT && courseCT.dateDernierResultat && courseCT.dateCourse
+      && courseCT.dateDernierResultat >= courseCT.dateCourse);
+    if (!courseDuJourDejaCourue) {
+      // Course du jour pas encore courue : c'est elle la prochaine.
+      if (course.depart) course.prochaineCourse = { heure: course.depart, nom: course.nom || null, jour: "aujourd'hui" };
+      if (statuts.arrivee.etat === "ok") {
+        statuts.arrivee.detail += " — prochaine course : aujourd'hui " + (course.depart || "N/D");
+      }
+    } else {
+      try {
+        const { texte: pageDemain } = await fetchTexte(URL_LISTE_DEMAIN, erreurs, "Canalturf — pronostics de demain");
+        const demain = parsePagePronosticsDemain(pageDemain);
+        if (!demain || !demain.heure) throw new Error("course support du prochain Quinté+ introuvable");
+        course.prochaineCourse = { heure: demain.heure, nom: demain.nom, jour: "demain" };
+        statuts.arrivee.detail += " — prochaine course : demain " + demain.heure;
+      } catch (e) {
+        // L'arrivée reste affichée ; seule l'heure de la prochaine
+        // course passe à N/D (rien n'est deviné).
+        statuts.arrivee.etat = statuts.arrivee.etat === "ok" ? "partiel" : statuts.arrivee.etat;
+        statuts.arrivee.detail += " — heure de la prochaine course indisponible : " + e.message;
+      }
+    }
+
     return { course, partants, statuts, erreurs };
   }
 
-  return { actualiserTout, parsePressePartants, parseSynthesePresse, parsePageQuinte, parsePagePronostic, parsePageCotes, parseFicheCheval, parsePageTurfFrQuinte, parsePartantsTurfFr };
+  return { actualiserTout, parsePressePartants, parseSynthesePresse, parsePageQuinte, parsePagePronostic, parsePageCotes, parseFicheCheval, parsePageTurfFrQuinte, parsePartantsTurfFr, parsePageResultat, parsePagePronosticsDemain };
 })();

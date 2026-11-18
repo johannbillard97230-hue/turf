@@ -317,6 +317,89 @@ body {
 .rapport-details li.erreur { color: var(--rouge); }
 .rapport-details li.erreur::before { color: var(--rouge); }
 
+/* ---------- Dernière arrivée Quinté+ / prochaine course ---------- */
+
+.arrivee-prochaine {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 14px;
+}
+
+.arrivee-card h2, .prochaine-card h2 { font-size: 1rem; color: var(--emeraude); }
+.arrivee-card h2 .icon, .prochaine-card h2 .icon { color: var(--emeraude); }
+
+.arrivee-meta {
+  margin: 8px 0 0;
+  font-family: var(--fonte-mono);
+  font-size: 0.78rem;
+  color: var(--texte-doux);
+  letter-spacing: 0.02em;
+}
+
+.arrivee-liste {
+  list-style: none;
+  margin: 12px 0 0; padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.arrivee-liste li {
+  display: flex; align-items: center; gap: 7px;
+  min-width: 0;
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  background: rgba(6, 11, 8, 0.45);
+  padding: 7px 9px;
+  font-size: 0.8rem;
+}
+.arrivee-liste .place {
+  font-family: var(--fonte-mono);
+  font-weight: 700; font-size: 0.74rem;
+  color: var(--texte);
+  flex: none;
+}
+.arrivee-liste .place.p1 { color: var(--emeraude); }
+.arrivee-liste .place.p2 { color: var(--bleu-place); }
+.arrivee-liste .place.p3 { color: var(--orange-place); }
+.arrivee-liste .place.p4 { color: var(--violet-place); }
+.arrivee-liste .place.p5 { color: var(--rose-place); }
+.arrivee-liste .arr-num {
+  font-family: var(--fonte-titre);
+  font-weight: 700; font-size: 0.95rem;
+  color: var(--dore);
+  flex: none;
+}
+.arrivee-liste .arr-nom {
+  font-weight: 600; font-size: 0.74rem;
+  text-transform: uppercase; letter-spacing: 0.02em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.arrivee-nd {
+  margin: 12px 0 0;
+  font-family: var(--fonte-mono);
+  font-size: 0.8rem;
+  color: var(--texte-faible);
+}
+
+.prochaine-card { text-align: center; display: flex; flex-direction: column; justify-content: center; }
+.prochaine-heure {
+  margin: 6px 0 0;
+  font-family: var(--fonte-titre);
+  font-size: 2.6rem; font-weight: 700;
+  color: var(--dore);
+  line-height: 1.1;
+  text-shadow: 0 0 18px rgba(242, 194, 48, 0.35);
+}
+.prochaine-nom {
+  margin: 6px 0 0;
+  font-family: var(--fonte-mono);
+  font-size: 0.78rem;
+  color: var(--texte-doux);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 /* ---------- Sélection des 8 chevaux ---------- */
 
 .selection-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -695,6 +778,9 @@ tr[data-rang="3"] .valeur-chiffre { text-shadow: 0 0 16px rgba(242, 194, 48, 0.4
 
 @media (max-width: 880px) {
   .table-wrap { display: none; }
+
+  .arrivee-prochaine { grid-template-columns: 1fr; }
+  .arrivee-liste { grid-template-columns: 1fr 1fr; }
 
   .cartes-partants { display: grid; gap: 10px; }
 

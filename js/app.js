@@ -480,6 +480,45 @@ TM.App = (() => {
     majCasesTableau();
   }
 
+  /* Dernière arrivée du Quinté+ (8 premiers, donnée réelle Canalturf)
+     + heure de la prochaine course (aujourd'hui si la course du jour
+     n'est pas courue, demain sinon). N/D si la source ne fournit pas
+     la donnée — rien n'est reconstitué. */
+  function afficherArriveeProchaine(course) {
+    const meta = $("arrivee-meta");
+    const liste = $("arrivee-liste");
+    const nd = $("arrivee-nd");
+    liste.innerHTML = "";
+
+    const arr = course && course.arriveeDerniere;
+    if (arr && arr.arrivee && arr.arrivee.length) {
+      const morceaux = [];
+      if (arr.dateTexte) morceaux.push(arr.dateTexte);
+      if (arr.nom) morceaux.push(arr.nom);
+      if (arr.hippodrome) morceaux.push(arr.hippodrome);
+      meta.textContent = morceaux.join(" — ") || "—";
+      nd.hidden = true;
+      for (const c of arr.arrivee) {
+        const li = document.createElement("li");
+        const cls = classePlace(c.place === 1 ? "1er" : c.place + "e");
+        li.innerHTML = `<span class="${cls}">${c.place}${c.place === 1 ? "er" : "e"}</span>`
+          + `<span class="arr-num">${c.numero}</span>`
+          + `<span class="arr-nom">${echappe(c.nom)}</span>`;
+        liste.appendChild(li);
+      }
+    } else {
+      meta.textContent = "—";
+      nd.hidden = false;
+    }
+
+    const pro = course && course.prochaineCourse;
+    $("prochaine-heure").textContent = pro && pro.heure ? pro.heure : "N/D";
+    const bits = [];
+    if (pro && pro.jour) bits.push(pro.jour.charAt(0).toUpperCase() + pro.jour.slice(1));
+    if (pro && pro.nom) bits.push(pro.nom);
+    $("prochaine-nom").textContent = bits.length ? bits.join(" — ") : (pro ? "—" : "Indisponible à la source");
+  }
+
   function afficherRapport(partants, statuts, erreurs) {
     const nb = partants.length;
     const citationsKO = statuts.citations && statuts.citations.etat === "ko";
@@ -551,6 +590,7 @@ TM.App = (() => {
         afficherTableau(etat.partantsTries);
         majSelectionUI(); // réaffiche les noms des chevaux sélectionnés
       }
+      afficherArriveeProchaine(course);
       afficherRapport(partants, statuts, erreurs);
       majSources(statuts, false);
       $("heure-synchro").textContent = new Date().toLocaleTimeString("fr-FR");
