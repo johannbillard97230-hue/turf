@@ -23,7 +23,7 @@ sélection personnelle de 8 chevaux.
 | Sexe/Âge & musique | Fiches Canalturf | sexe, âge, musique, 3 dernières sorties, réunion/course |
 | Cotes PMU | Canalturf — page « /cotes/ » de la course | historique horodaté des cotes PMU par cheval (relevés ~toutes les 10 min) : « Cote actuelle » = dernier relevé, « Dernière cote » = relevé précédent, heure du relevé affichée |
 | Corde (plat) | turf-fr.com — `/quinte/` puis fiche « partants » de la course | numéro de corde réel (stalles de départ) des courses de plat, que pronostics-turf.info ne publie pas (en plat, « Poteau » est remplacé par « Poids ») |
-| Arrivée & prochaine course | Canalturf — médaillon « dernières courses support Quinté+ » → page `/resultats-PMU/`, et page `courses_liste_pronostics_demain.php` | arrivée du dernier Quinté+ disputé (8 premiers : place, dossard, nom) ; heure de la prochaine course — aujourd'hui si la course du jour n'est pas courue, demain sinon (comparaison sur les dates publiées, jamais sur l'horloge du navigateur) |
+| Arrivée & prochaine course | Canalturf — page résultat de la course du jour (dérivée du pronostic, comme les cotes) en priorité, médaillon « dernières courses support Quinté+ » en repli ; page `courses_liste_pronostics_demain.php` | arrivée du dernier Quinté+ disputé (8 premiers : place, dossard, nom) — la page résultat de la course du jour est mise en ligne dès l'arrivée, souvent avant le médaillon ; heure de la prochaine course — aujourd'hui si la course du jour n'est pas courue, demain sinon (comparaison sur les dates publiées, jamais sur l'horloge du navigateur) |
 
 Les cotes ne sont pas lues directement sur PMU : l'API officielle est
 géo-restreinte à la France et inaccessible depuis les fonctions Netlify
@@ -96,8 +96,12 @@ d'égalité. Jamais de tri sur les cotes.
   Avant l'ouverture des relevés (~2 h avant le départ), N/D est affiché.
 - **Dernière arrivée Quinté+** : les 8 premiers du dernier Quinté+ disputé
   (place, dossard, nom — repris à l'identique de la page résultat Canalturf,
-  avec la date de la course affichée). Places colorées comme les sorties :
-  1er vert, 2ème bleu, 3ème orange, 4ème violet, 5ème rose, 6-8 neutres.
+  avec la date de la course affichée). Dès que la course du jour est courue,
+  son résultat est lu directement sur sa page résultat (dérivée du lien
+  pronostic, comme les cotes) : il est affiché sans attendre que la liste
+  « dernières courses » de Canalturf soit actualisée. Places colorées comme
+  les sorties : 1er vert, 2ème bleu, 3ème orange, 4ème violet, 5ème rose,
+  6-8 neutres.
 - **Prochaine course** : heure de départ lue telle que publiée (sans
   conversion de fuseau horaire), avec la **date réelle de la course**
   (publiée par la source, format JJ/MM/AAAA). Si le dernier résultat

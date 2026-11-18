@@ -627,6 +627,12 @@ TM.Sources = (() => {
     return { nom, hippodrome, dateTexte, arrivee };
   }
 
+  // Uniquement utile pour savoir si une page résultat contient une
+  // arrivée publiée, sans lever d'erreur (course pas encore courue).
+  function contientArrivee(texte) {
+    return /<tr><td>\d+(?:er|&egrave;me|ème)<\/td><td class="text-bold">\d+<\/td><td class="text-bold"><a /.test(texte || "");
+  }
+
   /* ============================================================
      SOURCE CANALTURF — heure de la prochaine course Quinté+
      (page « pronostics de demain »). Chaque item de réunion liste
@@ -834,33 +840,71 @@ TM.Sources = (() => {
     }
 
     // 3e. ARRIVÉE DU DERNIER QUINTÉ+ + HEURE DE LA PROCHAINE COURSE
-    // Le médaillon de la page Quinté donne le dernier résultat publié.
-    // Si ce résultat est celui de la course du jour (dates égales), la
-    // course du jour est déjà courue : la prochaine course est le
-    // Quinté+ de demain (heure lue sur la page « pronostics de demain »).
-    // Sinon, la prochaine course est la course du jour elle-même.
+    //
+    // Priorité : la page résultat de la COURSE DU JOUR. Son URL se
+    // déduit mécaniquement de l'URL pronostic (pronostics-PMU →
+    // resultats-PMU, même transformation que pour les cotes) : elle
+    // est mise en ligne dès l'arrivée, souvent AVANT que le médaillon
+    // « dernières courses support Quinté+ » ne soit actualisé. Si elle
+    // contient une arrivée définitive, c'est le dernier résultat réel.
+    // Repli : premier lien résultat du médaillon.
+    //
+    // La prochaine course découle des dates publiées (jamais de
+    // l'horloge du navigateur) : si le dernier résultat est celui de
+    // la course du jour, la prochaine course est le Quinté+ de demain
+    // (heure lue sur la page « pronostics de demain ») ; sinon c'est
+    // la course du jour elle-même.
     course.arriveeDerniere = null;
     course.prochaineCourse = null;
+    let dateDernierResultat = courseCT ? courseCT.dateDernierResultat : null;
+
     etape("Récupération de l'arrivée du dernier Quinté+…");
-    if (courseCT && courseCT.urlDernierResultat) {
+    let arriveeTrouvee = false;
+
+    // a) Sonde : résultat de la course du jour (dérivé du pronostic)
+    const urlProno = courseCT && courseCT.urlCotes
+      ? courseCT.urlCotes.replace("/cotes/", "/pronostics-PMU/")
+      : null;
+    if (urlProno) {
+      const urlResJour = urlProno.replace("/pronostics-PMU/", "/resultats-PMU/");
       try {
-        const { texte: pageRes } = await fetchTexte(courseCT.urlDernierResultat, erreurs, "Canalturf — arrivée du dernier Quinté+");
-        course.arriveeDerniere = parsePageResultat(pageRes, courseCT.dateDernierResultat);
-        statuts.arrivee.etat = "ok";
-        statuts.arrivee.detail = `arrivée du ${course.arriveeDerniere.dateTexte || "dernier Quinté+"} — ${course.arriveeDerniere.arrivee.length} premiers chevaux`;
+        const { texte: pageResJour } = await fetchTexte(urlResJour, erreurs, "Canalturf — résultat de la course du jour");
+        if (contientArrivee(pageResJour)) {
+          course.arriveeDerniere = parsePageResultat(pageResJour, courseCT.dateCourse);
+          dateDernierResultat = courseCT.dateCourse;
+          arriveeTrouvee = true;
+        }
       } catch (e) {
-        statuts.arrivee.etat = "ko";
-        statuts.arrivee.detail = e.message;
+        // Page absente ou inaccessible : ce n'est pas une erreur en
+        // soi (course pas encore courue) — on bascule sur le médaillon.
       }
-    } else {
-      statuts.arrivee.etat = "ko";
-      statuts.arrivee.detail = "lien vers le dernier résultat introuvable sur la page Quinté";
+    }
+
+    // b) Repli : médaillon « dernières courses support Quinté+ »
+    if (!arriveeTrouvee) {
+      if (courseCT && courseCT.urlDernierResultat) {
+        try {
+          const { texte: pageRes } = await fetchTexte(courseCT.urlDernierResultat, erreurs, "Canalturf — arrivée du dernier Quinté+");
+          course.arriveeDerniere = parsePageResultat(pageRes, courseCT.dateDernierResultat);
+          arriveeTrouvee = true;
+        } catch (e) {
+          statuts.arrivee.etat = "ko";
+          statuts.arrivee.detail = e.message;
+        }
+      } else {
+        statuts.arrivee.etat = "ko";
+        statuts.arrivee.detail = "lien vers le dernier résultat introuvable sur la page Quinté";
+      }
+    }
+    if (arriveeTrouvee) {
+      statuts.arrivee.etat = "ok";
+      statuts.arrivee.detail = `arrivée du ${course.arriveeDerniere.dateTexte || "dernier Quinté+"} — ${course.arriveeDerniere.arrivee.length} premiers chevaux`;
     }
 
     // Prochaine course : la comparaison se fait sur les dates publiées
     // par la source (ISO), jamais sur l'horloge du navigateur.
-    const courseDuJourDejaCourue = !!(courseCT && courseCT.dateDernierResultat && courseCT.dateCourse
-      && courseCT.dateDernierResultat >= courseCT.dateCourse);
+    const courseDuJourDejaCourue = !!(courseCT && dateDernierResultat && courseCT.dateCourse
+      && dateDernierResultat >= courseCT.dateCourse);
     if (!courseDuJourDejaCourue) {
       // Course du jour pas encore courue : c'est elle la prochaine.
       const dateJour = courseCT ? dateTexteIso(courseCT.dateCourse) : null;
