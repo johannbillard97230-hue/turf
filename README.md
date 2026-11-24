@@ -37,6 +37,15 @@ Les pages pronostics-turf.info sont publiées en windows-1252 : la couche de
 récupération détecte automatiquement le charset (UTF-8 strict, sinon
 windows-1252) et les proxys relaient les octets bruts sans conversion.
 
+**Protection anti-bot** : pronostics-turf.info est passé derrière une
+vérification YOORhosting (challenge JavaScript « Vérification de sécurité »).
+Les proxys la résolvent automatiquement : un POST signé (en-tête `X-YOOR-L7`)
+vers `/__yg_l7_js_pass_https` pose un cookie de passage (`yg_l7_pass`,
+~30 jours), mémorisé le temps de vie de l'instance serverless, puis la page
+demandée est servie normalement. Si la réponse reste une page de vérification,
+le challenge est rejoué une fois avant d'échouer. Aucune donnée n'est stockée
+hors du processus.
+
 ## Déploiement (Netlify ou Vercel)
 
 Le dossier est prêt tel quel — **aucune étape de build**.

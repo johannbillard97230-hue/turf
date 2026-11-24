@@ -550,7 +550,7 @@ TM.App = (() => {
       const directVu = erreurs.some(e => /accès direct/.test(e));
       if (proxyVu && directVu) {
         details.push({
-          txt: "La page est servie sans les fonctions proxy (aperçu statique) : le navigateur bloque l'appel direct aux sources (CORS) et les proxys publics gratuits sont hors service. Déployez le dossier sur Netlify ou Vercel — la fonction proxy incluse y est installée automatiquement et l'application fonctionne alors sans réglage.",
+          txt: "La page est servie sans les fonctions proxy (aperçu statique) ou le proxy est en échec : pronostics-turf.info est désormais protégé par une vérification anti-bot (YOORhosting) que la dernière version du proxy contourne automatiquement. Vérifiez que le site déployé inclut bien les fichiers proxy à jour (netlify/functions/proxy.js ou api/proxy.js) — redéployez le ZIP complet si besoin.",
           erreur: true
         });
       }
