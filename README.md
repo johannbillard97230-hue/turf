@@ -22,7 +22,7 @@ sélection personnelle de 8 chevaux.
 | Citations | pronostics-turf.info — `liste-synthese-de-pronostics-turf.php` | « LISTE RÉCAPITULATIVE — Position / Numéro / Fois cité » de la revue de presse hippique |
 | Sexe/Âge & musique | Fiches Canalturf | sexe, âge, musique, 3 dernières sorties, réunion/course |
 | Cotes PMU | Canalturf — page « /cotes/ » de la course | historique horodaté des cotes PMU par cheval (relevés ~toutes les 10 min) : « Cote actuelle » = dernier relevé, « Dernière cote » = relevé précédent, heure du relevé affichée |
-| Corde (plat) | turf-fr.com — `/quinte/` puis fiche « partants » de la course | numéro de corde réel (stalles de départ) des courses de plat, que pronostics-turf.info ne publie pas (en plat, « Poteau » est remplacé par « Poids ») |
+| Corde (plat) | turf-fr.com — `/quinte/` puis fiche « partants » de la course ; page pronostics Canalturf en secours (course vérifiée) | numéro de corde réel (stalles de départ) des courses de plat, que pronostics-turf.info ne publie pas (en plat, « Poteau » est remplacé par « Poids ») |
 | Arrivée & prochaine course | Canalturf — page résultat de la course du jour (dérivée du pronostic, comme les cotes) en priorité, médaillon « dernières courses support Quinté+ » en repli ; page `courses_liste_pronostics_demain.php` | arrivée du dernier Quinté+ disputé (8 premiers : place, dossard, nom) — la page résultat de la course du jour est mise en ligne dès l'arrivée, souvent avant le médaillon ; heure de la prochaine course — aujourd'hui si la course du jour n'est pas courue, demain sinon (comparaison sur les dates publiées, jamais sur l'horloge du navigateur) |
 
 Les cotes ne sont pas lues directement sur PMU : l'API officielle est
@@ -45,6 +45,23 @@ vers `/__yg_l7_js_pass_https` pose un cookie de passage (`yg_l7_pass`,
 demandée est servie normalement. Si la réponse reste une page de vérification,
 le challenge est rejoué une fois avant d'échouer. Aucune donnée n'est stockée
 hors du processus.
+
+**Cohérence entre sources (anti-mélange de courses)** : en soirée, la presse
+(source des valeurs) bascule sur la course du lendemain alors que la page
+Quinté Canalturf peut être restée sur celle du jour — et inversement le matin.
+Fusionner par n° de dossard deux courses différentes afficherait la fiche, la
+corde et les cotes d'un autre cheval sous le nom du premier. Avant toute
+fusion, les **noms des chevaux sont comparés dossard par dossard** (forme
+normalisée : majuscules, sans accents ni signes). Si les courses diffèrent, la
+course de la presse est recherchée dans les listes de pronostics Canalturf
+(date + hippodrome + icône Quinté+, puis nouvelle vérification nom par nom sur
+sa page pronostics) ; si elle reste introuvable, aucune donnée Canalturf n'est
+fusionnée (`N/D`, jamais de mélange). turf-fr.com subit le même contrôle : la
+date de la course figure dans l'URL de sa fiche — si elle diffère de la date
+publiée par la presse, ses numéros de corde sont ignorés, et chaque corde
+n'est appliquée que si le nom du cheval concorde. L'arrivée affichée est
+toujours la **page résultat datée la plus récente** parmi les candidates
+(course de la page Quinté, course analysée, médaillon).
 
 ## Déploiement (Netlify ou Vercel)
 

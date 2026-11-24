@@ -593,6 +593,21 @@ TM.Sources = (() => {
     return cordes;
   }
 
+  // Noms des chevaux de la fiche course turf-fr, par dossard.
+  // Ils servent au contrôle de cohérence : un numéro de corde n'est
+  // appliqué que si le nom turf-fr correspond au nom de la presse
+  // (jamais de corde d'un AUTRE cheval affichée).
+  function parsePartantsTurfFrNoms(texte) {
+    const noms = {};
+    const re = /<tr[^>]*data-tri-num="(\d+)"[\s\S]*?partants-horse-name">\s*([^<]+?)\s*<\/span>/g;
+    let m;
+    while ((m = re.exec(texte)) !== null) {
+      const numero = parseInt(m[1], 10);
+      if (Number.isFinite(numero)) noms[numero] = m[2].trim();
+    }
+    return noms;
+  }
+
   /* ============================================================
      SOURCE CANALTURF — arrivée du dernier Quinté+ disputé
      Le médaillon « Les dernières courses support Quinté+ » de la
@@ -642,6 +657,7 @@ TM.Sources = (() => {
      ============================================================ */
 
   const URL_LISTE_DEMAIN = "https://www.canalturf.com/courses_liste_pronostics_demain.php";
+  const URL_LISTE_JOUR = "https://www.canalturf.com/courses_liste_pronostics.php";
 
   // Date ISO (AAAA-MM-JJ) → affichage JJ/MM/AAAA, sans objet Date
   // (aucune conversion de fuseau horaire n'est appliquée).
@@ -669,6 +685,167 @@ TM.Sources = (() => {
   }
 
   /* ============================================================
+     COHÉRENCE ENTRE SOURCES — garde-fou anti-mélange de courses
+     En soirée, la presse (source des valeurs) bascule sur la course
+     du lendemain alors que la page Quinté Canalturf peut être
+     restée sur celle du jour (et inversement le matin). Fusionner
+     par n° de dossard deux courses différentes afficherait la
+     fiche, la corde et les cotes d'un AUTRE cheval sous le nom du
+     premier. On compare donc les NOMS dossard par dossard avant
+     toute fusion ; si les courses diffèrent, la course de la presse
+     est recherchée dans les listes Canalturf ; si elle reste
+     introuvable, aucune donnée Canalturf n'est fusionnée (N/D).
+     ============================================================ */
+
+  // Seuil de concordance au-delà duquel deux listes de partants
+  // sont jugées décrire la même course (60 % des dossards communs
+  // avec nom identique — en pratique 0 % ou ~100 %).
+  const SEUIL_MEME_COURSE = 0.6;
+
+  // Clé de comparaison d'un nom de cheval : majuscules, accents
+  // retirés, lettres uniquement (« Félix aux Ormes » ≡ « FELIX AUX
+  // ORMES », « Muenchen » ≡ « MUENCHEN »).
+  function cleNom(nom) {
+    return (nom || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .toUpperCase().replace(/[^A-Z]/g, "");
+  }
+
+  // Compare deux listes de partants : dossards communs, dossards
+  // dont le nom est identique des deux côtés, ratio de concordance.
+  function comparerPartants(presse, ct) {
+    const parNum = new Map();
+    for (const c of ct) if (c.numero != null && !parNum.has(c.numero)) parNum.set(c.numero, c);
+    let communs = 0, identiques = 0;
+    const numerosOk = new Set();
+    for (const p of presse) {
+      const c = parNum.get(p.numero);
+      if (!c) continue;
+      communs++;
+      if (cleNom(c.nom) === cleNom(p.nom)) { identiques++; numerosOk.add(p.numero); }
+    }
+    return { communs, identiques, ratio: communs ? identiques / communs : 0, numerosOk };
+  }
+
+  // « JJ-MM-AAAA » (date textuelle de la presse) → « AAAA-MM-JJ »
+  // (repère ISO comparable aux dates Canalturf / turf-fr).
+  function isoDepuisDateTexte(dateTexte) {
+    const m = (dateTexte || "").match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+  }
+
+  // Listes de pronostics Canalturf (aujourd'hui / demain) : chaque
+  // item renvoie vers la page pronostics-PMU d'une course, dont
+  // l'URL contient la date et l'hippodrome ; l'icône pl_quint
+  // identifie la course support du Quinté+.
+  function parseListeCourses(texte) {
+    const courses = [];
+    const re = /<a class="list-group-item[^"]*" href="(https:\/\/www\.canalturf\.com\/pronostics-PMU\/(\d{4}-\d{2}-\d{2})\/([a-z0-9-]+)\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+    let m;
+    while ((m = re.exec(texte)) !== null) {
+      const bloc = m[4];
+      const h = bloc.match(/(\d{2}:\d{2})<br/);
+      const n = bloc.match(/<strong>([^<]+)<\/strong>/);
+      courses.push({
+        url: m[1],
+        dateIso: m[2],
+        hippodrome: m[3],
+        heure: h ? h[1] : null,
+        nom: n ? n[1].trim() : null,
+        quinte: bloc.includes("pl_quint")
+      });
+    }
+    return courses;
+  }
+
+  /* ============================================================
+     PAGE « PRONOSTICS » D'UNE COURSE (Canalturf)
+     Ex. pronostics-PMU/AAAA-MM-JJ/hippodrome/id_nom.html
+     Tableau des partants : n° / cheval (lien idcheval + musique) /
+     corde ou déferrage / jockey-entraîneur / poids / valeur (plat).
+     Les colonnes sont repérées par leur libellé d'en-tête (la
+     structure diffère entre plat et trot). Les lignes « NP »
+     (non-partants) n'ont ni dossard ni données : le nom seul est
+     conservé pour identification.
+     ============================================================ */
+  function parsePagePronosticsCourse(doc, url) {
+    const mUrl = (url || "").match(/pronostics-PMU\/(\d{4}-\d{2}-\d{2})\/([a-z0-9-]+)\//i);
+    const course = {
+      dateCourse: mUrl ? mUrl[1] : null,
+      hippodrome: mUrl ? mUrl[2].replace(/-/g, " ").toUpperCase() : null,
+      discipline: null, distance: null, handicap: null
+    };
+
+    // Ligne d'identité : « PLAT, 2500 metres , PSF , Corde a DROITE
+    // 50.900- HANDICAP DIVISE Pour … »
+    const divInfo = Array.from(doc.querySelectorAll("div")).find(d =>
+      /text-xs/.test(d.className || "") && /metres/i.test(d.textContent || ""));
+    if (divInfo) {
+      const t = normalise(divInfo.textContent);
+      const m = t.match(/([A-Za-zÀ-ÿ]+)\s*,\s*([\d ]+)\s*metres/i);
+      if (m) {
+        course.discipline = m[1].toUpperCase();
+        course.distance = m[2].replace(/\s/g, "") + " m";
+      }
+      course.handicap = /\bHANDICAP\b/i.test(t);
+    }
+
+    // Tableau des partants : celui dont l'en-tête contient « Cheval »
+    let table = null, ths = [];
+    for (const t of doc.querySelectorAll("table")) {
+      const entetes = Array.from(t.querySelectorAll("thead th")).map(th => normalise(th.textContent).toLowerCase());
+      if (entetes.includes("cheval")) { table = t; ths = entetes; break; }
+    }
+    if (!table) throw new Error("tableau des partants introuvable sur la page pronostics");
+    const iCorde = ths.indexOf("corde");
+    const iPoids = ths.indexOf("poids");
+    const iVal = ths.indexOf("val.");
+
+    const partants = [];
+    for (const tr of table.querySelectorAll("tr")) {
+      if (tr.closest("thead")) continue;
+      const tds = tr.querySelectorAll("td");
+      if (tds.length < 2) continue;
+      const numTxt = normalise(tds[0].textContent);
+      const lien = tr.querySelector("a[href*='idcheval=']");
+      if (!lien) continue;
+      const mId = (lien.getAttribute("href") || "").match(/idcheval=(\d+)/);
+      const titre = lien.getAttribute("title") || "";
+      const mNom = titre.match(/du cheval\s+(.+)$/i);
+      const nom = mNom
+        ? normalise(mNom[1]).toUpperCase()
+        : normalise(lien.textContent).replace(/\([^)]*\).*$/, "").trim().toUpperCase();
+      if (!nom) continue;
+      const np = /^NP$/i.test(numTxt);
+      const p = {
+        numero: np ? null : parseInt(numTxt, 10),
+        np,
+        nom,
+        idCheval: mId ? mId[1] : null,
+        corde: null, poids: null, valeurHandicap: null, musique: null
+      };
+      if (!np && Number.isFinite(p.numero)) {
+        const small = tds[1] ? tds[1].querySelector("small") : null;
+        if (small) p.musique = normalise(small.textContent) || null;
+        if (iCorde > 0 && tds[iCorde]) {
+          const c = normalise(tds[iCorde].textContent);
+          if (/^\d+$/.test(c)) p.corde = parseInt(c, 10);
+        }
+        if (iPoids > 0 && tds[iPoids]) {
+          const mP = normalise(tds[iPoids].textContent).match(/([\d.,]+)\s*kg/i);
+          if (mP) p.poids = parseFloat(mP[1].replace(",", "."));
+        }
+        if (iVal > 0 && tds[iVal]) {
+          const v = normalise(tds[iVal].textContent);
+          if (/^\d+([.,]\d+)?$/.test(v)) p.valeurHandicap = parseFloat(v.replace(",", "."));
+        }
+      }
+      partants.push(p);
+    }
+    if (!partants.length) throw new Error("aucun partant extrait de la page pronostics");
+    return { course, partants };
+  }
+
+  /* ============================================================
      Orchestration d'une actualisation complète
      ============================================================ */
 
@@ -679,7 +856,7 @@ TM.Sources = (() => {
       citations: { nom: "pronostics-turf.info — citations (revue de presse)", etat: "attente", detail: "" },
       fiches:    { nom: "Canalturf — fiches chevaux (sexe/âge, musique, sorties)", etat: "attente", detail: "" },
       cotes:     { nom: "Canalturf — cotes PMU (dernière / actuelle)", etat: "attente", detail: "" },
-      corde:     { nom: "turf-fr.com — n° de corde (courses de plat)", etat: "attente", detail: "" },
+      corde:     { nom: "Canalturf / turf-fr.com — n° de corde (courses de plat)", etat: "attente", detail: "" },
       arrivee:   { nom: "Canalturf — arrivée du dernier Quinté+", etat: "attente", detail: "" }
     };
 
@@ -720,17 +897,107 @@ TM.Sources = (() => {
     }
 
     // 3. CANALTURF : page Quinté → idCheval (fiches) + réunion/course
+    //
+    // CONTRÔLE DE COHÉRENCE : la page Quinté Canalturf peut être
+    // restée sur la course de la veille alors que la presse est déjà
+    // passée à la suivante (bascule en soirée) — ou l'inverse le
+    // matin. Avant toute fusion, les NOMS sont comparés dossard par
+    // dossard ; si les courses diffèrent, la course de la presse est
+    // recherchée dans les listes Canalturf (récupération) ; si elle
+    // reste introuvable, AUCUNE donnée Canalturf n'est fusionnée
+    // (N/D affiché — jamais de mélange entre deux courses).
     etape("Connexion à Canalturf (fiches chevaux)…");
     let courseCT = null, partantsCT = [];
+    let coursePageQuinte = null;   // course affichée par la page Quinté (médaillon, sonde résultat)
+    let nomsCoherents = new Set(); // dossards dont le nom Canalturf = nom presse
+    let ctCoherent = false, ctRecupere = false;
+    let listesCourses = [];        // items des listes jour/demain (réutilisés pour la prochaine course)
+    let courseListee = null;       // course de la presse trouvée dans une liste (heure publiée)
+    const datePresseIso = isoDepuisDateTexte(course.dateTexte);
     try {
       const { texte } = await fetchTexte(URL_QUINTE, erreurs, "Canalturf — page Quinté");
       const r = parsePageQuinte(parseHTML(texte));
-      courseCT = r.course;
-      partantsCT = r.partants;
-      const parNum = new Map(partantsCT.map(p => [p.numero, p]));
+      coursePageQuinte = r.course;
+      const cmp = comparerPartants(partants, r.partants);
+      if (cmp.communs > 0 && cmp.ratio >= SEUIL_MEME_COURSE) {
+        courseCT = r.course;
+        partantsCT = r.partants;
+        nomsCoherents = cmp.numerosOk;
+        ctCoherent = true;
+      } else {
+        erreurs.push("Canalturf — page Quinté : la course affichée n'est pas celle de la presse "
+          + `(${cmp.identiques}/${cmp.communs} noms concordants) — recherche de la course analysée`);
+      }
+    } catch (e) {
+      erreurs.push("Canalturf — page Quinté : " + e.message);
+    }
+
+    // 3a. Récupération : retrouver la course de la presse dans les
+    // listes de pronostics (date + hippodrome + icône Quinté+), puis
+    // vérifier à nouveau les noms sur sa page pronostics.
+    if (!ctCoherent) {
+      etape("Recherche de la course analysée sur Canalturf…");
+      for (const u of [URL_LISTE_JOUR, URL_LISTE_DEMAIN]) {
+        try {
+          const { texte } = await fetchTexte(u, erreurs, "Canalturf — liste des pronostics");
+          listesCourses.push(...parseListeCourses(texte));
+        } catch (e) { /* liste indisponible : tentative avec la suivante */ }
+      }
+      const clePresse = cleNom(course.hippodrome);
+      const quintes = listesCourses.filter(c => c.quinte);
+      courseListee = quintes.find(c => c.dateIso === datePresseIso
+          && clePresse
+          && (cleNom(c.hippodrome) === clePresse
+            || clePresse.includes(cleNom(c.hippodrome))
+            || cleNom(c.hippodrome).includes(clePresse)))
+        || quintes.find(c => c.dateIso === datePresseIso)
+        || null;
+      if (courseListee) {
+        try {
+          const { texte: pageProno } = await fetchTexte(courseListee.url, erreurs, "Canalturf — page pronostics de la course");
+          const rc = parsePagePronosticsCourse(parseHTML(pageProno), courseListee.url);
+          const cmp2 = comparerPartants(partants, rc.partants);
+          if (cmp2.communs > 0 && cmp2.ratio >= SEUIL_MEME_COURSE) {
+            ctCoherent = true;
+            ctRecupere = true;
+            partantsCT = rc.partants;
+            nomsCoherents = cmp2.numerosOk;
+            courseCT = {
+              nom: courseListee.nom,
+              hippodrome: rc.course.hippodrome,
+              reunionCourse: coursePageQuinte ? coursePageQuinte.reunionCourse : null,
+              dateCourse: rc.course.dateCourse,
+              depart: courseListee.heure,
+              urlCotes: courseListee.url.replace("/pronostics-PMU/", "/cotes/"),
+              urlDernierResultat: coursePageQuinte ? coursePageQuinte.urlDernierResultat : null,
+              dateDernierResultat: coursePageQuinte ? coursePageQuinte.dateDernierResultat : null,
+              handicap: rc.course.handicap
+            };
+          } else {
+            erreurs.push(`Canalturf — page pronostics retrouvée mais non concordante (${cmp2.identiques}/${cmp2.communs} noms) — fusion refusée`);
+          }
+        } catch (e) {
+          erreurs.push("Canalturf — page pronostics de la course : " + e.message);
+        }
+      }
+      if (!ctCoherent) {
+        erreurs.push("Canalturf n'affiche pas la même course que la presse et la course analysée n'a pas été retrouvée — fiches, cotes et corde non fusionnées (N/D)");
+      }
+    }
+
+    // Fusion des identifiants fiches : dossard ET nom identiques
+    // exigés. Les non-partants Canalturf (lignes « NP » sans dossard)
+    // sont identifiés par leur seul nom.
+    if (ctCoherent) {
+      const parNum = new Map(partantsCT.filter(c => c.numero != null).map(c => [c.numero, c]));
+      const npParNom = new Map(partantsCT.filter(c => c.numero == null).map(c => [cleNom(c.nom), c]));
       for (const p of partants) {
-        const ct = parNum.get(p.numero);
-        if (ct) p.idCheval = ct.idCheval;
+        if (nomsCoherents.has(p.numero) && parNum.has(p.numero)) {
+          p.idCheval = parNum.get(p.numero).idCheval;
+        } else {
+          const np = npParNom.get(cleNom(p.nom));
+          if (np) p.idCheval = np.idCheval;
+        }
       }
       // Compléments d'identité de course que la page presse ne donne pas
       if (courseCT) {
@@ -738,13 +1005,23 @@ TM.Sources = (() => {
         course.depart = courseCT.depart;
         if (!course.discipline && courseCT.discipline) course.discipline = courseCT.discipline;
       }
-    } catch (e) {
-      erreurs.push("Canalturf — page Quinté : " + e.message);
+    } else if (courseListee && courseListee.heure) {
+      // Course retrouvée dans une liste mais page non vérifiée :
+      // l'heure publiée est utilisable, le reste reste à N/D.
+      course.depart = courseListee.heure;
     }
 
-    // 3b. Fiches chevaux (par lots de 4 pour ménager la source)
+    // 3b. Fiches chevaux (par lots de 4 pour ménager la source).
+    // Sans course Canalturf vérifiée, aucune fiche n'est demandée :
+    // un identifiant issu d'une autre course afficherait la fiche
+    // d'un autre cheval — on préfère N/D.
     etape("Lecture des fiches chevaux…");
     let ok = 0, tentes = 0;
+    if (!ctCoherent) {
+      for (const p of partants) p.fiche = null;
+      statuts.fiches.etat = "ko";
+      statuts.fiches.detail = "Canalturf n'affiche pas la même course que la presse — aucune fiche fusionnée (N/D), relancez une actualisation plus tard";
+    } else {
     const lots = [];
     for (let i = 0; i < partants.length; i += 4) lots.push(partants.slice(i, i + 4));
     for (const lot of lots) {
@@ -765,17 +1042,19 @@ TM.Sources = (() => {
       }));
     }
     statuts.fiches.etat = ok === partants.length ? "ok" : (ok > 0 ? "partiel" : "ko");
-    statuts.fiches.detail = ok === 0 && tentes === 0
-      ? "page Quinté Canalturf indisponible — aucune fiche accessible"
-      : `${ok}/${partants.length} fiches récupérées`;
+    statuts.fiches.detail = (ctRecupere
+      ? "course retrouvée via les listes Canalturf (page Quinté désynchronisée) — "
+      : "") + (ok === 0 && tentes === 0
+      ? "aucune fiche accessible"
+      : `${ok}/${partants.length} fiches récupérées`);
+    }
 
     // 3c. COTES PMU : page /cotes/ de Canalturf (lien dérivé de la
     // page Quinté). Avant l'ouverture des relevés (environ 2 h avant
     // la course), la page n'a pas encore de séries → N/D partout,
     // jamais de valeur fabriquée.
     etape("Récupération des cotes PMU (Canalturf)…");
-    if (courseCT && courseCT.urlCotes) {
-      try {
+    if (courseCT && courseCT.urlCotes) {      try {
         const { texte } = await fetchTexte(courseCT.urlCotes, erreurs, "Canalturf — cotes PMU");
         const { cotes, heureMax } = parsePageCotes(texte);
         if (!Object.keys(cotes).length) {
@@ -803,12 +1082,20 @@ TM.Sources = (() => {
       }
     } else {
       statuts.cotes.etat = "ko";
-      statuts.cotes.detail = "lien vers la page cotes introuvable sur la page Quinté";
+      statuts.cotes.detail = ctCoherent
+        ? "lien vers la page cotes introuvable sur la page Quinté"
+        : "Canalturf n'affiche pas la même course que la presse — cotes non fusionnées (N/D)";
     }
 
     // 3d. CORDE DES COURSES DE PLAT : pronostics-turf.info ne publie
     // le n° de corde qu'en attelé (« Poteau ») — en plat il est remplacé
-    // par le poids. turf-fr.com le publie dans sa fiche « partants ».
+    // par le poids. Deux sources, toutes deux contrôlées :
+    //  a) la page pronostics Canalturf, lorsque la course y a été
+    //     retrouvée et vérifiée nom par nom (récupération) ;
+    //  b) turf-fr.com, dont la fiche course porte la date dans son
+    //     URL — si elle diffère de la date presse, la source affiche
+    //     une AUTRE course et ses numéros sont ignorés ; le nom du
+    //     cheval est en outre vérifié pour chaque dossard.
     // La détection du plat se fait sur les données réelles (poids
     // présent, poteau absent), jamais sur le libellé de discipline.
     const estPlat = partants.some(p => p.poids != null) && !partants.some(p => p.poteau != null);
@@ -817,108 +1104,150 @@ TM.Sources = (() => {
       statuts.corde.etat = "na";
       statuts.corde.detail = "course attelée — numéros à la corde déjà fournis par la source des valeurs";
     } else {
-      etape("Récupération des numéros de corde (turf-fr.com)…");
+      etape("Récupération des numéros de corde…");
+      for (const p of partants) p.corde = null;
+      // a) Canalturf (course vérifiée lors de la récupération)
+      let nbCT = 0;
+      if (ctRecupere) {
+        const parNumCT = new Map(partantsCT.filter(c => c.numero != null).map(c => [c.numero, c]));
+        for (const p of partants) {
+          const c = parNumCT.get(p.numero);
+          if (c && c.corde != null && nomsCoherents.has(p.numero)) { p.corde = c.corde; nbCT++; }
+        }
+      }
+      // b) turf-fr.com, seulement si sa fiche course est celle de la
+      //    course analysée (date de l'URL = date publiée par la presse)
+      let detailTfr = "";
       try {
         const { texte: pageQuinteTfr } = await fetchTexte(URL_TURF_FR_QUINTE, erreurs, "turf-fr.com — page Quinté");
         const urlCourse = parsePageTurfFrQuinte(pageQuinteTfr);
         if (!urlCourse) throw new Error("lien vers la fiche course introuvable sur turf-fr.com/quinte/");
+        const mDateTfr = urlCourse.match(/\/course\/(\d{4}-\d{2}-\d{2})\//);
+        if (datePresseIso && mDateTfr && mDateTfr[1] !== datePresseIso) {
+          throw new Error(`turf-fr.com affiche la course du ${dateTexteIso(mDateTfr[1])}, pas celle analysée (${dateTexteIso(datePresseIso)}) — numéros ignorés`);
+        }
         const { texte: pageCourseTfr } = await fetchTexte(urlCourse, erreurs, "turf-fr.com — fiche course");
         const cordes = parsePartantsTurfFr(pageCourseTfr);
-        let nbCordes = 0;
+        const nomsTfr = parsePartantsTurfFrNoms(pageCourseTfr);
+        let nbTfr = 0;
         for (const p of partants) {
-          p.corde = cordes[p.numero] !== undefined ? cordes[p.numero] : null;
-          if (p.corde != null) nbCordes++;
+          if (p.corde != null) continue; // déjà fourni par Canalturf (course vérifiée)
+          if (cordes[p.numero] !== undefined && cordes[p.numero] !== null
+              && cleNom(nomsTfr[p.numero]) === cleNom(p.nom)) {
+            p.corde = cordes[p.numero];
+            nbTfr++;
+          }
         }
-        if (!nbCordes) throw new Error("aucun numéro de corde exploitable sur la fiche course");
-        statuts.corde.etat = nbCordes === partants.length ? "ok" : "partiel";
-        statuts.corde.detail = `${nbCordes}/${partants.length} numéros de corde récupérés`;
+        detailTfr = nbTfr ? `${nbTfr} via turf-fr.com` : "aucun via turf-fr.com (noms non concordants)";
       } catch (e) {
+        detailTfr = "turf-fr.com : " + e.message;
+      }
+      const nbCordes = partants.filter(p => p.corde != null).length;
+      if (!nbCordes) {
         statuts.corde.etat = "ko";
-        statuts.corde.detail = e.message;
-        for (const p of partants) p.corde = null; // N/D affiché, rien de fabriqué
+        statuts.corde.detail = detailTfr || "aucun numéro de corde exploitable";
+      } else {
+        statuts.corde.etat = nbCordes === partants.length ? "ok" : "partiel";
+        statuts.corde.detail = `${nbCordes}/${partants.length} numéros de corde récupérés`
+          + (nbCT ? ` (${nbCT} via Canalturf, course vérifiée)` : "")
+          + (detailTfr ? ` — ${detailTfr}` : "");
       }
     }
 
     // 3e. ARRIVÉE DU DERNIER QUINTÉ+ + HEURE DE LA PROCHAINE COURSE
     //
-    // Priorité : la page résultat de la COURSE DU JOUR. Son URL se
-    // déduit mécaniquement de l'URL pronostic (pronostics-PMU →
-    // resultats-PMU, même transformation que pour les cotes) : elle
-    // est mise en ligne dès l'arrivée, souvent AVANT que le médaillon
-    // « dernières courses support Quinté+ » ne soit actualisé. Si elle
-    // contient une arrivée définitive, c'est le dernier résultat réel.
-    // Repli : premier lien résultat du médaillon.
-    //
-    // La prochaine course découle des dates publiées (jamais de
-    // l'horloge du navigateur) : si le dernier résultat est celui de
-    // la course du jour, la prochaine course est le Quinté+ de demain
-    // (heure lue sur la page « pronostics de demain ») ; sinon c'est
-    // la course du jour elle-même.
+    // Plusieurs pages résultat candidates, chacune datée par sa
+    // source (jamais par l'horloge du navigateur) :
+    //  A. la course affichée par la page Quinté — utile quand elle
+    //     est restée sur la course du jour alors que la presse est
+    //     déjà passée à celle du lendemain : c'est elle la dernière
+    //     courue ;
+    //  B. la course analysée — son URL résultat se déduit de l'URL
+    //     pronostic (même transformation que pour les cotes) : elle
+    //     est mise en ligne dès l'arrivée, souvent AVANT le médaillon ;
+    //  C. le médaillon « dernières courses support Quinté+ ».
+    // La plus RÉCENTE contenant une arrivée définitive l'emporte :
+    // ainsi, quelle que soit la page désynchronisée, l'arrivée
+    // affichée est toujours le dernier résultat réel.
     course.arriveeDerniere = null;
     course.prochaineCourse = null;
-    let dateDernierResultat = courseCT ? courseCT.dateDernierResultat : null;
 
     etape("Récupération de l'arrivée du dernier Quinté+…");
-    let arriveeTrouvee = false;
+    const candidats = [];
+    const urlVues = new Set();
+    const ajouterCandidat = (urlQuelconque, dateIso) => {
+      if (!urlQuelconque || !dateIso) return;
+      const u = urlQuelconque.replace("/cotes/", "/resultats-PMU/").replace("/pronostics-PMU/", "/resultats-PMU/");
+      if (!u.includes("/resultats-PMU/") || urlVues.has(u)) return;
+      urlVues.add(u);
+      candidats.push({ url: u, dateIso });
+    };
+    if (coursePageQuinte) {
+      ajouterCandidat(coursePageQuinte.urlCotes, coursePageQuinte.dateCourse);
+      ajouterCandidat(coursePageQuinte.urlDernierResultat, coursePageQuinte.dateDernierResultat);
+    }
+    if (courseCT) ajouterCandidat(courseCT.urlCotes, courseCT.dateCourse);
 
-    // a) Sonde : résultat de la course du jour (dérivé du pronostic)
-    const urlProno = courseCT && courseCT.urlCotes
-      ? courseCT.urlCotes.replace("/cotes/", "/pronostics-PMU/")
-      : null;
-    if (urlProno) {
-      const urlResJour = urlProno.replace("/pronostics-PMU/", "/resultats-PMU/");
+    const trouves = [];
+    for (const c of candidats) {
       try {
-        const { texte: pageResJour } = await fetchTexte(urlResJour, erreurs, "Canalturf — résultat de la course du jour");
-        if (contientArrivee(pageResJour)) {
-          course.arriveeDerniere = parsePageResultat(pageResJour, courseCT.dateCourse);
-          dateDernierResultat = courseCT.dateCourse;
-          arriveeTrouvee = true;
+        const { texte: pageRes } = await fetchTexte(c.url, erreurs, "Canalturf — page résultat");
+        if (contientArrivee(pageRes)) {
+          trouves.push({ resultat: parsePageResultat(pageRes, c.dateIso), dateIso: c.dateIso });
         }
       } catch (e) {
-        // Page absente ou inaccessible : ce n'est pas une erreur en
-        // soi (course pas encore courue) — on bascule sur le médaillon.
+        // Page absente ou inaccessible : course pas encore courue ou
+        // lien périmé — ce n'est pas une erreur, candidate suivante.
       }
     }
-
-    // b) Repli : médaillon « dernières courses support Quinté+ »
-    if (!arriveeTrouvee) {
-      if (courseCT && courseCT.urlDernierResultat) {
-        try {
-          const { texte: pageRes } = await fetchTexte(courseCT.urlDernierResultat, erreurs, "Canalturf — arrivée du dernier Quinté+");
-          course.arriveeDerniere = parsePageResultat(pageRes, courseCT.dateDernierResultat);
-          arriveeTrouvee = true;
-        } catch (e) {
-          statuts.arrivee.etat = "ko";
-          statuts.arrivee.detail = e.message;
-        }
-      } else {
-        statuts.arrivee.etat = "ko";
-        statuts.arrivee.detail = "lien vers le dernier résultat introuvable sur la page Quinté";
-      }
-    }
-    if (arriveeTrouvee) {
+    let dateDernierResultat = null;
+    if (trouves.length) {
+      trouves.sort((a, b) => b.dateIso.localeCompare(a.dateIso));
+      course.arriveeDerniere = trouves[0].resultat;
+      dateDernierResultat = trouves[0].dateIso;
       statuts.arrivee.etat = "ok";
       statuts.arrivee.detail = `arrivée du ${course.arriveeDerniere.dateTexte || "dernier Quinté+"} — ${course.arriveeDerniere.arrivee.length} premiers chevaux`;
+    } else {
+      statuts.arrivee.etat = "ko";
+      statuts.arrivee.detail = candidats.length
+        ? "aucune page résultat ne contient d'arrivée définitive"
+        : "lien vers le dernier résultat introuvable sur la page Quinté";
     }
 
     // Prochaine course : la comparaison se fait sur les dates publiées
-    // par la source (ISO), jamais sur l'horloge du navigateur.
-    const courseDuJourDejaCourue = !!(courseCT && dateDernierResultat && courseCT.dateCourse
-      && dateDernierResultat >= courseCT.dateCourse);
-    if (!courseDuJourDejaCourue) {
-      // Course du jour pas encore courue : c'est elle la prochaine.
-      const dateJour = courseCT ? dateTexteIso(courseCT.dateCourse) : null;
-      if (course.depart) course.prochaineCourse = { heure: course.depart, nom: course.nom || null, jour: "aujourd'hui", dateTexte: dateJour };
+    // par la source (ISO), jamais sur l'horloge du navigateur. La
+    // référence est la date de la course ANALYSÉE (celle de la presse).
+    const dateRef = (courseCT && courseCT.dateCourse) || datePresseIso;
+    const courseAnalyseeCourue = !!(dateDernierResultat && dateRef && dateDernierResultat >= dateRef);
+    if (!courseAnalyseeCourue) {
+      // Course analysée pas encore courue : c'est elle la prochaine.
+      const dateTxt = dateRef ? dateTexteIso(dateRef) : null;
+      if (dateRef || course.depart) {
+        course.prochaineCourse = { heure: course.depart || null, nom: course.nom || null, jour: null, dateTexte: dateTxt };
+      }
       if (statuts.arrivee.etat === "ok") {
-        statuts.arrivee.detail += " — prochaine course : " + (dateJour || "aujourd'hui") + " " + (course.depart || "N/D");
+        statuts.arrivee.detail += " — prochaine course : " + (dateTxt || "N/D") + " " + (course.depart || "N/D");
       }
     } else {
+      // Course analysée déjà courue : le prochain Quinté+ est celui
+      // d'un jour ultérieur, lu dans les listes Canalturf (déjà
+      // récupérées si une récupération de course a eu lieu).
       try {
-        const { texte: pageDemain } = await fetchTexte(URL_LISTE_DEMAIN, erreurs, "Canalturf — pronostics de demain");
-        const demain = parsePagePronosticsDemain(pageDemain);
-        if (!demain || !demain.heure) throw new Error("course support du prochain Quinté+ introuvable");
-        course.prochaineCourse = { heure: demain.heure, nom: demain.nom, jour: "demain", dateTexte: demain.dateTexte || null };
-        statuts.arrivee.detail += " — prochaine course : " + (demain.dateTexte || "demain") + " " + demain.heure;
+        if (!listesCourses.length) {
+          for (const u of [URL_LISTE_JOUR, URL_LISTE_DEMAIN]) {
+            try {
+              const { texte } = await fetchTexte(u, erreurs, "Canalturf — liste des pronostics");
+              listesCourses.push(...parseListeCourses(texte));
+            } catch (e) { /* liste indisponible : tentative suivante */ }
+          }
+        }
+        const suivantes = listesCourses
+          .filter(c => c.quinte && c.dateIso && c.dateIso > dateRef)
+          .sort((a, b) => a.dateIso.localeCompare(b.dateIso));
+        const pro = suivantes[0];
+        if (!pro || !pro.heure) throw new Error("course support du prochain Quinté+ introuvable");
+        course.prochaineCourse = { heure: pro.heure, nom: pro.nom, jour: null, dateTexte: dateTexteIso(pro.dateIso) };
+        statuts.arrivee.detail += " — prochaine course : " + dateTexteIso(pro.dateIso) + " " + pro.heure;
       } catch (e) {
         // L'arrivée reste affichée ; seule l'heure de la prochaine
         // course passe à N/D (rien n'est deviné).
@@ -930,5 +1259,5 @@ TM.Sources = (() => {
     return { course, partants, statuts, erreurs };
   }
 
-  return { actualiserTout, parsePressePartants, parseSynthesePresse, parsePageQuinte, parsePagePronostic, parsePageCotes, parseFicheCheval, parsePageTurfFrQuinte, parsePartantsTurfFr, parsePageResultat, parsePagePronosticsDemain };
+  return { actualiserTout, parsePressePartants, parseSynthesePresse, parsePageQuinte, parsePagePronostic, parsePageCotes, parseFicheCheval, parsePageTurfFrQuinte, parsePartantsTurfFr, parsePartantsTurfFrNoms, parsePageResultat, parsePagePronosticsDemain, parseListeCourses, parsePagePronosticsCourse, comparerPartants, cleNom, isoDepuisDateTexte };
 })();
