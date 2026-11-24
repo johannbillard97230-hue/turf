@@ -152,7 +152,8 @@ TM.App = (() => {
       citations: statuts.citations,
       fiches: statuts.fiches,
       cotes: statuts.cotes,
-      corde: statuts.corde
+      corde: statuts.corde,
+      handicap: statuts.handicap
     };
     document.querySelectorAll(".source-pill").forEach(pill => {
       const s = correspondance[pill.dataset.source];
@@ -523,6 +524,74 @@ TM.App = (() => {
     $("prochaine-nom").textContent = bits.length ? bits.join(" — ") : (pro ? "—" : "Indisponible à la source");
   }
 
+  /* Bloc « Analyse du handicap » (handicaps de plat uniquement).
+     Rendu des données calculées dans sources.js : moyenne du
+     peloton, écarts, avantage poids (kg), forme et profil
+     qualitatif avec justification chiffrée. Le bloc reste masqué
+     pour toute course non handicap ou en cas de donnée manquante —
+     rien n'est reconstitué. */
+  function afficherHandicap(course) {
+    const bloc = $("bloc-handicap");
+    const hc = course && course.handicapData;
+    if (!hc || !hc.lignes || !hc.lignes.length) {
+      bloc.hidden = true;
+      return;
+    }
+    bloc.hidden = false;
+
+    const fmt = v => (Math.round(v * 10) / 10).toString().replace(".", ",");
+    const signe = v => (v >= 0 ? "+" : "") + fmt(v);
+    const nd = '<span class="hc-nd">N/D</span>';
+
+    $("hc-course").textContent = [course.nom, hc.distance].filter(Boolean).join(" · ");
+    $("hc-moyenne").textContent = fmt(hc.moyenne);
+    $("hc-evalues").textContent = hc.nbEvalues === hc.nbPartants
+      ? `${hc.nbEvalues} partants évalués`
+      : `${hc.nbEvalues}/${hc.nbPartants} partants évalués (valeur absente exclue, jamais remplacée par zéro)`;
+
+    const classeProfil = p => p === "PROFIL FAVORABLE" ? "profil-favorable"
+      : p === "PROFIL À SURVEILLER" ? "profil-surveiller"
+      : p === "PROFIL MOINS FAVORABLE" ? "profil-moins" : "profil-nd";
+    const badge = l => l.profil
+      ? `<span class="badge-profil ${classeProfil(l.profil)}" title="${echappe(l.justification || "")}">${l.profil}</span>`
+      : nd;
+
+    const tbody = $("hc-tbody");
+    tbody.innerHTML = "";
+    for (const l of hc.lignes) {
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        `<td class="hc-num">${l.numero}</td>`
+        + `<td class="hc-nom" title="${echappe(l.justification || "données insuffisantes — pas de profil")}">${echappe(l.nom)}</td>`
+        + `<td class="hc-val">${l.valeur != null ? fmt(l.valeur) : nd}</td>`
+        + `<td class="hc-ecart">${l.ecart != null ? signe(l.ecart) : nd}</td>`
+        + `<td>${l.poids != null ? fmt(l.poids) + " kg" : nd}</td>`
+        + `<td class="hc-avantage">${l.avantage != null ? signe(l.avantage) + " kg" : nd}</td>`
+        + `<td class="hc-forme">${l.forme ? l.forme.top5 + "/" + l.forme.sorties : nd}</td>`
+        + `<td>${badge(l)}</td>`;
+      tbody.appendChild(tr);
+    }
+
+    // Mobile : cartes empilées, une par cheval
+    const cartes = $("hc-cartes");
+    cartes.innerHTML = "";
+    for (const l of hc.lignes) {
+      const c = document.createElement("article");
+      c.className = "hc-carte";
+      c.innerHTML =
+        `<header><span class="hc-num">${l.numero}</span><strong>${echappe(l.nom)}</strong>${badge(l)}</header>`
+        + `<dl>`
+        + `<div><dt>Valeur handicap</dt><dd>${l.valeur != null ? fmt(l.valeur) : "N/D"}</dd></div>`
+        + `<div><dt>Écart / moyenne</dt><dd>${l.ecart != null ? signe(l.ecart) : "N/D"}</dd></div>`
+        + `<div><dt>Poids porté</dt><dd>${l.poids != null ? fmt(l.poids) + " kg" : "N/D"}</dd></div>`
+        + `<div><dt>Avantage poids</dt><dd>${l.avantage != null ? signe(l.avantage) + " kg" : "N/D"}</dd></div>`
+        + `<div><dt>Forme (top-5)</dt><dd>${l.forme ? l.forme.top5 + "/" + l.forme.sorties : "N/D"}</dd></div>`
+        + `</dl>`
+        + (l.justification ? `<p class="hc-justif">${echappe(l.justification)}</p>` : "");
+      cartes.appendChild(c);
+    }
+  }
+
   function afficherRapport(partants, statuts, erreurs) {
     const nb = partants.length;
     const citationsKO = statuts.citations && statuts.citations.etat === "ko";
@@ -595,6 +664,7 @@ TM.App = (() => {
         majSelectionUI(); // réaffiche les noms des chevaux sélectionnés
       }
       afficherArriveeProchaine(course);
+      afficherHandicap(course);
       afficherRapport(partants, statuts, erreurs);
       majSources(statuts, false);
       $("heure-synchro").textContent = new Date().toLocaleTimeString("fr-FR");

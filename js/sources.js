@@ -846,6 +846,132 @@ TM.Sources = (() => {
   }
 
   /* ============================================================
+     MODULE HANDICAP — analyse du handicap et potentiel Top 5
+     (courses de PLAT en handicap uniquement)
+     Fonctions pures : aucune donnée fabriquée, aucun coefficient
+     importé. La moyenne porte sur les valeurs disponibles (une
+     valeur absente est exclue du calcul, jamais remplacée par 0).
+     ============================================================ */
+
+  // Musique Canalturf : « 4p2p2p4p9p0p(25)0p4p0p » — lue de gauche
+  // à droite (plus récent → plus ancien). Chaque sortie est un
+  // chiffre (la place, 0 = non placé) ou un code incident en
+  // MAJUSCULE (D, R, T, A…), suivi d'une lettre minuscule de
+  // discipline (p, m, a, c…) qui n'est PAS une sortie. Forme =
+  // nombre de top-5 sur les 6 dernières sorties connues.
+  // Aucune pondération.
+  function parseMusiqueForme(musique) {
+    if (!musique) return null;
+    const propre = String(musique).replace(/\(\d{2,4}\)/g, " ");
+    const jetons = propre.match(/\d+|[A-Z]/g) || [];
+    if (!jetons.length) return null;
+    const sorties = Math.min(6, jetons.length);
+    let top5 = 0;
+    for (let i = 0; i < sorties; i++) {
+      const j = jetons[i];
+      if (/^\d+$/.test(j)) {
+        const v = parseInt(j, 10);
+        if (v >= 1 && v <= 5) top5++;
+      }
+    }
+    return { top5, sorties };
+  }
+
+  // Analyse du peloton. lignes : [{numero, nom, corde, valeur,
+  // poids, forme}]. Renvoie la moyenne, l'avantage poids (résidu de
+  // la régression poids = a + b × valeur calibrée sur le peloton
+  // lui-même) et le profil de chaque cheval (rangs en tiers par
+  // axe, règle déterministe affichée dans l'interface).
+  function analyserPelotonHandicap(lignes) {
+    const evalues = lignes.filter(l => l.valeur != null);
+    if (!evalues.length) return null;
+    const moyenne = evalues.reduce((s, l) => s + l.valeur, 0) / evalues.length;
+
+    // Régression intra-peloton (moindres carrés) sur les couples
+    // (valeur, poids) complets : le poids « attendu » d'un cheval
+    // découle de sa valeur, calibré sur cette course précise.
+    const couples = evalues.filter(l => l.poids != null);
+    let a = null, b = null;
+    if (couples.length >= 3) {
+      const xm = couples.reduce((s, l) => s + l.valeur, 0) / couples.length;
+      const ym = couples.reduce((s, l) => s + l.poids, 0) / couples.length;
+      let num = 0, den = 0;
+      for (const l of couples) {
+        num += (l.valeur - xm) * (l.poids - ym);
+        den += (l.valeur - xm) * (l.valeur - xm);
+      }
+      if (den > 0) { b = num / den; a = ym - b * xm; }
+    }
+
+    for (const l of lignes) {
+      l.ecart = l.valeur != null ? l.valeur - moyenne : null;
+      if (l.valeur != null && l.poids != null && a != null) {
+        l.poidsAttendu = a + b * l.valeur;
+        l.avantage = l.poids - l.poidsAttendu; // négatif = décharge (avantage)
+      } else {
+        l.poidsAttendu = null;
+        l.avantage = null;
+      }
+    }
+
+    // Rangs en tiers par axe — déterministe (tri par mesure puis n°)
+    const tiers = {};
+    const attribuer = (ordonnes, cle) => {
+      const n = ordonnes.length;
+      ordonnes.forEach((l, i) => {
+        if (!tiers[l.numero]) tiers[l.numero] = {};
+        tiers[l.numero][cle] = n < 3 ? 1 : Math.min(2, Math.floor(i * 3 / n));
+      });
+    };
+    // valeur handicap : plus haut = mieux
+    attribuer(
+      lignes.filter(l => l.valeur != null)
+        .sort((x, y) => (y.valeur - x.valeur) || (x.numero - y.numero)),
+      "valeur");
+    // avantage poids : résidu le plus négatif (décharge) = mieux
+    attribuer(
+      lignes.filter(l => l.avantage != null)
+        .sort((x, y) => (x.avantage - y.avantage) || (x.numero - y.numero)),
+      "avantage");
+    // forme : ratio top-5/sorties puis top-5, plus haut = mieux
+    attribuer(
+      lignes.filter(l => l.forme != null)
+        .sort((x, y) => ((y.forme.top5 / y.forme.sorties) - (x.forme.top5 / x.forme.sorties))
+          || (y.forme.top5 - x.forme.top5) || (x.numero - y.numero)),
+      "forme");
+
+    // Profils : ≥ 2 axes dans le tiers supérieur sans aucun dans le
+    // tiers inférieur → FAVORABLE ; ≥ 2 axes dans le tiers inférieur
+    // → MOINS FAVORABLE ; sinon À SURVEILLER. Cheval incomplet
+    // (donnée manquante) → pas de profil (N/D).
+    const fmt = v => (Math.round(v * 10) / 10).toString().replace(".", ",");
+    for (const l of lignes) {
+      const t = tiers[l.numero];
+      if (!t || t.valeur == null || t.avantage == null || t.forme == null) {
+        l.profil = null;
+        l.justification = null;
+        continue;
+      }
+      const axes = [t.valeur, t.avantage, t.forme];
+      const haut = axes.filter(x => x === 0).length;
+      const bas = axes.filter(x => x === 2).length;
+      if (haut >= 2 && bas === 0) l.profil = "PROFIL FAVORABLE";
+      else if (bas >= 2) l.profil = "PROFIL MOINS FAVORABLE";
+      else l.profil = "PROFIL À SURVEILLER";
+      const morceaux = [];
+      if (l.valeur != null) morceaux.push(`valeur ${fmt(l.valeur)} (${l.ecart >= 0 ? "+" : ""}${fmt(l.ecart)} vs moyenne)`);
+      if (l.avantage != null) {
+        if (l.avantage <= -1) morceaux.push(`décharge de ${fmt(-l.avantage)} kg`);
+        else if (l.avantage >= 1) morceaux.push(`surcharge de ${fmt(l.avantage)} kg`);
+        else morceaux.push(`poids conforme à sa valeur (${l.avantage >= 0 ? "+" : ""}${fmt(l.avantage)} kg)`);
+      }
+      if (l.forme) morceaux.push(`${l.forme.top5} top-5 sur ${l.forme.sorties} sorties`);
+      l.justification = morceaux.join(" · ");
+    }
+    return { moyenne, nbEvalues: evalues.length, nbPartants: lignes.length, lignes };
+  }
+
+  /* ============================================================
      Orchestration d'une actualisation complète
      ============================================================ */
 
@@ -857,6 +983,7 @@ TM.Sources = (() => {
       fiches:    { nom: "Canalturf — fiches chevaux (sexe/âge, musique, sorties)", etat: "attente", detail: "" },
       cotes:     { nom: "Canalturf — cotes PMU (dernière / actuelle)", etat: "attente", detail: "" },
       corde:     { nom: "Canalturf / turf-fr.com — n° de corde (courses de plat)", etat: "attente", detail: "" },
+      handicap:  { nom: "Canalturf — valeurs handicap & potentiel Top 5 (handicaps de plat)", etat: "attente", detail: "" },
       arrivee:   { nom: "Canalturf — arrivée du dernier Quinté+", etat: "attente", detail: "" }
     };
 
@@ -913,6 +1040,7 @@ TM.Sources = (() => {
     let ctCoherent = false, ctRecupere = false;
     let listesCourses = [];        // items des listes jour/demain (réutilisés pour la prochaine course)
     let courseListee = null;       // course de la presse trouvée dans une liste (heure publiée)
+    let pronoCourseDejaLue = null; // page pronostics déjà analysée (récupération) — réutilisée par le module handicap
     const datePresseIso = isoDepuisDateTexte(course.dateTexte);
     try {
       const { texte } = await fetchTexte(URL_QUINTE, erreurs, "Canalturf — page Quinté");
@@ -961,6 +1089,7 @@ TM.Sources = (() => {
             ctCoherent = true;
             ctRecupere = true;
             partantsCT = rc.partants;
+            pronoCourseDejaLue = rc;
             nomsCoherents = cmp2.numerosOk;
             courseCT = {
               nom: courseListee.nom,
@@ -1154,6 +1283,69 @@ TM.Sources = (() => {
       }
     }
 
+    // 3f. MODULE HANDICAP — analyse du handicap et potentiel Top 5.
+    // Réservé aux courses de PLAT dont le libellé publié est un
+    // HANDICAP (ligne d'identité de la page pronostics). Source :
+    // le tableau des partants de la page pronostics Canalturf
+    // (valeur handicap, poids, corde, musique), vérifié nom par nom.
+    // La course a pu être lue lors de la récupération (3a) : on la
+    // réutilise, sinon elle est déduite de l'URL cotes. Une valeur
+    // absente est exclue de la moyenne (jamais remplacée par 0) et
+    // affichée N/D. Le classement principal et la sélection des 8
+    // chevaux ne sont pas touchés.
+    course.handicapData = null;
+    if (!estPlat) {
+      statuts.handicap.etat = "na";
+      statuts.handicap.detail = "course attelée — analyse du handicap sans objet";
+    } else if (!ctCoherent || !courseCT || !courseCT.urlCotes) {
+      statuts.handicap.etat = "ko";
+      statuts.handicap.detail = "course Canalturf non vérifiée — valeurs handicap non fusionnées (N/D)";
+    } else {
+      etape("Analyse du handicap (Canalturf)…");
+      try {
+        let rc = pronoCourseDejaLue;
+        if (!rc) {
+          const urlPronoH = courseCT.urlCotes.replace("/cotes/", "/pronostics-PMU/");
+          const { texte: pagePronoH } = await fetchTexte(urlPronoH, erreurs, "Canalturf — page pronostics (handicap)");
+          rc = parsePagePronosticsCourse(parseHTML(pagePronoH), urlPronoH);
+          const cmpH = comparerPartants(partants, rc.partants);
+          if (!(cmpH.communs > 0 && cmpH.ratio >= SEUIL_MEME_COURSE)) {
+            throw new Error("page pronostics non concordante avec la presse — analyse refusée");
+          }
+        }
+        if (rc.course.handicap !== true) {
+          statuts.handicap.etat = "na";
+          statuts.handicap.detail = "course non handicap (libellé publié) — module sans objet";
+        } else {
+          const parNumH = new Map(rc.partants.filter(c => c.numero != null).map(c => [c.numero, c]));
+          const lignes = [];
+          for (const p of partants) {
+            const c = parNumH.get(p.numero) || {};
+            lignes.push({
+              numero: p.numero,
+              nom: p.nom,
+              corde: c.corde != null ? c.corde : (p.corde != null ? p.corde : null),
+              valeur: c.valeurHandicap != null ? c.valeurHandicap : null,
+              poids: c.poids != null ? c.poids : (p.poids != null ? p.poids : null),
+              forme: parseMusiqueForme(c.musique)
+            });
+          }
+          lignes.sort((x, y) => x.numero - y.numero);
+          const analyse = analyserPelotonHandicap(lignes);
+          if (!analyse) throw new Error("aucune valeur handicap publiée sur la page pronostics");
+          analyse.distance = rc.course.distance;
+          course.handicapData = analyse;
+          const nbVal = analyse.nbEvalues;
+          statuts.handicap.etat = nbVal === partants.length ? "ok" : "partiel";
+          statuts.handicap.detail = `handicap confirmé — moyenne du peloton calculée sur ${nbVal}/${partants.length} valeurs publiées`
+            + (ctRecupere ? " (course vérifiée via les listes)" : "");
+        }
+      } catch (e) {
+        statuts.handicap.etat = "ko";
+        statuts.handicap.detail = e.message;
+      }
+    }
+
     // 3e. ARRIVÉE DU DERNIER QUINTÉ+ + HEURE DE LA PROCHAINE COURSE
     //
     // Plusieurs pages résultat candidates, chacune datée par sa
@@ -1259,5 +1451,5 @@ TM.Sources = (() => {
     return { course, partants, statuts, erreurs };
   }
 
-  return { actualiserTout, parsePressePartants, parseSynthesePresse, parsePageQuinte, parsePagePronostic, parsePageCotes, parseFicheCheval, parsePageTurfFrQuinte, parsePartantsTurfFr, parsePartantsTurfFrNoms, parsePageResultat, parsePagePronosticsDemain, parseListeCourses, parsePagePronosticsCourse, comparerPartants, cleNom, isoDepuisDateTexte };
+  return { actualiserTout, parsePressePartants, parseSynthesePresse, parsePageQuinte, parsePagePronostic, parsePageCotes, parseFicheCheval, parsePageTurfFrQuinte, parsePartantsTurfFr, parsePartantsTurfFrNoms, parsePageResultat, parsePagePronosticsDemain, parseListeCourses, parsePagePronosticsCourse, comparerPartants, cleNom, isoDepuisDateTexte, parseMusiqueForme, analyserPelotonHandicap };
 })();

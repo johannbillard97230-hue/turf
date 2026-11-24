@@ -22,6 +22,7 @@ sélection personnelle de 8 chevaux.
 | Citations | pronostics-turf.info — `liste-synthese-de-pronostics-turf.php` | « LISTE RÉCAPITULATIVE — Position / Numéro / Fois cité » de la revue de presse hippique |
 | Sexe/Âge & musique | Fiches Canalturf | sexe, âge, musique, 3 dernières sorties, réunion/course |
 | Cotes PMU | Canalturf — page « /cotes/ » de la course | historique horodaté des cotes PMU par cheval (relevés ~toutes les 10 min) : « Cote actuelle » = dernier relevé, « Dernière cote » = relevé précédent, heure du relevé affichée |
+| Valeurs handicap | Canalturf — page « pronostics-PMU » de la course | colonnes « Val. », « Poids », « Corde » et musique du tableau des partants (handicaps de plat uniquement) |
 | Corde (plat) | turf-fr.com — `/quinte/` puis fiche « partants » de la course ; page pronostics Canalturf en secours (course vérifiée) | numéro de corde réel (stalles de départ) des courses de plat, que pronostics-turf.info ne publie pas (en plat, « Poteau » est remplacé par « Poids ») |
 | Arrivée & prochaine course | Canalturf — page résultat de la course du jour (dérivée du pronostic, comme les cotes) en priorité, médaillon « dernières courses support Quinté+ » en repli ; page `courses_liste_pronostics_demain.php` | arrivée du dernier Quinté+ disputé (8 premiers : place, dossard, nom) — la page résultat de la course du jour est mise en ligne dès l'arrivée, souvent avant le médaillon ; heure de la prochaine course — aujourd'hui si la course du jour n'est pas courue, demain sinon (comparaison sur les dates publiées, jamais sur l'horloge du navigateur) |
 
@@ -62,6 +63,25 @@ publiée par la presse, ses numéros de corde sont ignorés, et chaque corde
 n'est appliquée que si le nom du cheval concorde. L'arrivée affichée est
 toujours la **page résultat datée la plus récente** parmi les candidates
 (course de la page Quinté, course analysée, médaillon).
+
+**Module « Analyse du handicap » (handicaps de plat uniquement)** : affiché
+entre la carte course et le tableau principal, il ne s'active que si la ligne
+d'identité publiée de la course contient le mot HANDICAP (et jamais en trot ni
+sur une course à conditions). La **moyenne des valeurs handicap du peloton**
+est calculée systématiquement, sur les seules valeurs disponibles — une valeur
+absente est exclue du calcul (diviseur réduit) et affichée `N/D`, jamais
+remplacée par zéro. L'**avantage poids** est le résidu en kg de la régression
+des moindres carrés `poids = a + b × valeur` calibrée sur le peloton de la
+course elle-même (aucun coefficient importé ni conversion kg→longueurs
+inventée ; négatif = décharge, positif = surcharge). La **forme** est le
+nombre de top-5 sur les 6 dernières sorties de la musique publiée. Le
+**potentiel Top 5** est une appréciation qualitative par rangs en tiers du
+peloton (≥ 2 axes dans le tiers supérieur sans aucun dans le tiers inférieur →
+PROFIL FAVORABLE ; ≥ 2 axes dans le tiers inférieur → PROFIL MOINS FAVORABLE ;
+sinon PROFIL À SURVEILLER), accompagnée d'une justification chiffrée — ce
+n'est pas une probabilité mathématique, et la corde n'y entre pas (pas de
+statistique fiable par hippodrome). Le classement principal par VALEUR et la
+sélection des 8 chevaux sont strictement inchangés.
 
 ## Déploiement (Netlify ou Vercel)
 
