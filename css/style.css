@@ -355,6 +355,7 @@ body {
 .hc-ecart { font-family: var(--fonte-mono); font-size: 0.8rem; color: var(--texte-doux); }
 .hc-avantage { font-family: var(--fonte-mono); font-size: 0.8rem; color: var(--turquoise); }
 .hc-forme { font-family: var(--fonte-mono); font-size: 0.8rem; }
+.hc-corde { font-family: var(--fonte-mono); font-size: 0.8rem; color: var(--texte-doux); }
 .hc-nd { color: var(--texte-faible); font-style: italic; font-size: 0.78rem; }
 
 .badge-profil {

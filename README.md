@@ -70,18 +70,31 @@ d'identité publiée de la course contient le mot HANDICAP (et jamais en trot ni
 sur une course à conditions). La **moyenne des valeurs handicap du peloton**
 est calculée systématiquement, sur les seules valeurs disponibles — une valeur
 absente est exclue du calcul (diviseur réduit) et affichée `N/D`, jamais
-remplacée par zéro. L'**avantage poids** est le résidu en kg de la régression
-des moindres carrés `poids = a + b × valeur` calibrée sur le peloton de la
-course elle-même (aucun coefficient importé ni conversion kg→longueurs
-inventée ; négatif = décharge, positif = surcharge). La **forme** est le
-nombre de top-5 sur les 6 dernières sorties de la musique publiée. Le
-**potentiel Top 5** est une appréciation qualitative par rangs en tiers du
-peloton (≥ 2 axes dans le tiers supérieur sans aucun dans le tiers inférieur →
-PROFIL FAVORABLE ; ≥ 2 axes dans le tiers inférieur → PROFIL MOINS FAVORABLE ;
-sinon PROFIL À SURVEILLER), accompagnée d'une justification chiffrée — ce
-n'est pas une probabilité mathématique, et la corde n'y entre pas (pas de
-statistique fiable par hippodrome). Le classement principal par VALEUR et la
-sélection des 8 chevaux sont strictement inchangés.
+remplacée par zéro. Quatre critères, tous mesurés sur la course elle-même :
+
+1. **valeur handicap × distance** — l'écart à la moyenne du peloton est lu
+   selon la distance publiée : sur sprint (≤ 1400 m), une valeur nettement
+   au-dessus du peloton est pénalisée (un cheval qui porte plus de poids n'a
+   pas la distance pour revenir sur ceux qui portent moins) ; sur longue
+   distance (≥ 2200 m), elle est valorisée (la classe a le temps de
+   s'exprimer) ; « nettement » = au-delà de l'écart-type du peloton, mesuré
+   sur la course (aucun seuil arbitraire) ;
+2. **avantage poids** — résidu en kg de la régression des moindres carrés
+   `poids = a + b × valeur` calibrée sur le peloton de la course (a et b
+   mesurés, jamais importés ; négatif = décharge, positif = surcharge) ;
+3. **forme récente** — top-5 sur les 6 dernières sorties de la musique
+   publiée ;
+4. **corde** — C1 à C8 favorable, au-delà défavorable, absente = critère
+   exclu (jamais inventée).
+
+Le **potentiel Top 5** est une appréciation qualitative : ≥ 2 critères
+favorables sans aucun défavorable → PROFIL FAVORABLE ; ≥ 2 critères
+défavorables → PROFIL MOINS FAVORABLE ; sinon PROFIL À SURVEILLER, avec une
+justification chiffrée par cheval. Ce n'est pas une probabilité
+mathématique. Le classement principal par VALEUR et la sélection des 8
+chevaux sont strictement inchangés — le module peut justement les
+contredire (ex. la plus haute valeur du handicap n'est pas favorable sur un
+sprint).
 
 ## Déploiement (Netlify ou Vercel)
 

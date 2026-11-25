@@ -845,7 +845,7 @@ TM.Sources = (() => {
     return { course, partants };
   }
 
-  /* ============================================================
+    /* ============================================================
      MODULE HANDICAP — analyse du handicap et potentiel Top 5
      (courses de PLAT en handicap uniquement)
      Fonctions pures : aucune donnée fabriquée, aucun coefficient
@@ -877,15 +877,41 @@ TM.Sources = (() => {
     return { top5, sorties };
   }
 
+  // Bande de distance (mètres). Sprint ≤ 1400 m : un cheval au-
+  // dessus de la moyenne du peloton porte plus de poids et n'a pas
+  // la distance pour revenir sur ceux qui portent moins ; longue
+  // distance ≥ 2200 m : la classe a le temps de s'exprimer.
+  // Bandes affichées dans l'interface — le sens de la règle vient
+  // du principe du handicap ; les bornes couvrent les distances
+  // réelles des handicaps de plat (sprints en ligne droite
+  // jusqu'à 1400 m).
+  function bandeDistance(distanceM) {
+    if (distanceM == null || !Number.isFinite(distanceM)) return null;
+    if (distanceM <= 1400) return "sprint";
+    if (distanceM >= 2200) return "long";
+    return "intermediaire";
+  }
+
   // Analyse du peloton. lignes : [{numero, nom, corde, valeur,
-  // poids, forme}]. Renvoie la moyenne, l'avantage poids (résidu de
-  // la régression poids = a + b × valeur calibrée sur le peloton
-  // lui-même) et le profil de chaque cheval (rangs en tiers par
-  // axe, règle déterministe affichée dans l'interface).
-  function analyserPelotonHandicap(lignes) {
+  // poids, forme}] ; distanceM : distance publiée en mètres.
+  // Quatre critères, tous mesurés sur la course elle-même :
+  //  1. valeur handicap × distance — l'écart à la moyenne est lu
+  //     selon la bande ; « nettement » = au-delà de l'écart-type
+  //     du peloton (mesuré, jamais fixé arbitrairement) ;
+  //  2. avantage poids — résidu en kg de la régression
+  //     poids = a + b × valeur calibrée sur le peloton (a et b
+  //     mesurés sur la course, jamais importés) ;
+  //  3. forme récente — top-5 sur les 6 dernières sorties ;
+  //  4. corde — C1 à C8 favorable, au-delà défavorable, absente
+  //     = critère exclu (jamais inventée).
+  // Rangs en tiers pour les critères relatifs (avantage, forme) :
+  // tri par mesure puis n° de dossard — déterministe.
+  function analyserPelotonHandicap(lignes, distanceM) {
     const evalues = lignes.filter(l => l.valeur != null);
     if (!evalues.length) return null;
     const moyenne = evalues.reduce((s, l) => s + l.valeur, 0) / evalues.length;
+    const sigma = Math.sqrt(
+      evalues.reduce((s, l) => s + (l.valeur - moyenne) ** 2, 0) / evalues.length);
 
     // Régression intra-peloton (moindres carrés) sur les couples
     // (valeur, poids) complets : le poids « attendu » d'un cheval
@@ -914,7 +940,7 @@ TM.Sources = (() => {
       }
     }
 
-    // Rangs en tiers par axe — déterministe (tri par mesure puis n°)
+    // Rangs en tiers pour les critères relatifs
     const tiers = {};
     const attribuer = (ordonnes, cle) => {
       const n = ordonnes.length;
@@ -923,11 +949,6 @@ TM.Sources = (() => {
         tiers[l.numero][cle] = n < 3 ? 1 : Math.min(2, Math.floor(i * 3 / n));
       });
     };
-    // valeur handicap : plus haut = mieux
-    attribuer(
-      lignes.filter(l => l.valeur != null)
-        .sort((x, y) => (y.valeur - x.valeur) || (x.numero - y.numero)),
-      "valeur");
     // avantage poids : résidu le plus négatif (décharge) = mieux
     attribuer(
       lignes.filter(l => l.avantage != null)
@@ -940,38 +961,71 @@ TM.Sources = (() => {
           || (y.forme.top5 - x.forme.top5) || (x.numero - y.numero)),
       "forme");
 
-    // Profils : ≥ 2 axes dans le tiers supérieur sans aucun dans le
-    // tiers inférieur → FAVORABLE ; ≥ 2 axes dans le tiers inférieur
-    // → MOINS FAVORABLE ; sinon À SURVEILLER. Cheval incomplet
-    // (donnée manquante) → pas de profil (N/D).
+    const bande = bandeDistance(distanceM);
     const fmt = v => (Math.round(v * 10) / 10).toString().replace(".", ",");
+
+    // Critères : +1 favorable, 0 neutre, -1 défavorable.
+    // Profils : ≥ 2 favorables sans défavorable → FAVORABLE ;
+    // ≥ 2 défavorables → MOINS FAVORABLE ; sinon À SURVEILLER.
+    // Moins de 3 critères évaluables → pas de profil (N/D).
     for (const l of lignes) {
-      const t = tiers[l.numero];
-      if (!t || t.valeur == null || t.avantage == null || t.forme == null) {
+      const t = tiers[l.numero] || {};
+      const criteres = [];
+      const just = [];
+
+      // 1. valeur handicap × distance
+      if (l.valeur != null && bande != null) {
+        let c = 0;
+        if (sigma > 0 && l.ecart > sigma) c = bande === "sprint" ? -1 : 1;
+        else if (sigma > 0 && l.ecart < -sigma) c = bande === "sprint" ? 1 : -1;
+        criteres.push(c);
+        const ecartTxt = `valeur ${fmt(l.valeur)} (${l.ecart >= 0 ? "+" : ""}${fmt(l.ecart)} vs moyenne)`;
+        if (c < 0 && bande === "sprint") just.push(`${ecartTxt} — pénalisante sur sprint : le poids ne peut être rattrapé faute de distance`);
+        else if (c > 0 && bande !== "sprint") just.push(`${ecartTxt} — classe valorisée sur la distance`);
+        else if (c > 0 && bande === "sprint") just.push(`${ecartTxt} — léger sur un sprint`);
+        else if (c < 0) just.push(`${ecartTxt} — nettement sous le peloton sur la distance`);
+        else just.push(ecartTxt);
+      }
+
+      // 2. avantage poids
+      if (l.avantage != null && t.avantage != null) {
+        const c = t.avantage === 0 ? 1 : (t.avantage === 2 ? -1 : 0);
+        criteres.push(c);
+        if (l.avantage <= -1) just.push(`décharge de ${fmt(-l.avantage)} kg`);
+        else if (l.avantage >= 1) just.push(`surcharge de ${fmt(l.avantage)} kg`);
+        else just.push(`poids conforme à sa valeur (${l.avantage >= 0 ? "+" : ""}${fmt(l.avantage)} kg)`);
+      }
+
+      // 3. forme récente
+      if (l.forme != null && t.forme != null) {
+        const c = t.forme === 0 ? 1 : (t.forme === 2 ? -1 : 0);
+        criteres.push(c);
+        just.push(`${l.forme.top5} top-5 sur ${l.forme.sorties} sorties`);
+      }
+
+      // 4. corde (C1-C8 favorable)
+      if (l.corde != null) {
+        const c = l.corde <= 8 ? 1 : -1;
+        criteres.push(c);
+        just.push(l.corde <= 8 ? `corde C${l.corde} (C1-C8)` : `corde C${l.corde}, au-delà de C8`);
+      }
+
+      if (criteres.length < 3) {
         l.profil = null;
         l.justification = null;
         continue;
       }
-      const axes = [t.valeur, t.avantage, t.forme];
-      const haut = axes.filter(x => x === 0).length;
-      const bas = axes.filter(x => x === 2).length;
-      if (haut >= 2 && bas === 0) l.profil = "PROFIL FAVORABLE";
-      else if (bas >= 2) l.profil = "PROFIL MOINS FAVORABLE";
-      else l.profil = "PROFIL À SURVEILLER";
-      const morceaux = [];
-      if (l.valeur != null) morceaux.push(`valeur ${fmt(l.valeur)} (${l.ecart >= 0 ? "+" : ""}${fmt(l.ecart)} vs moyenne)`);
-      if (l.avantage != null) {
-        if (l.avantage <= -1) morceaux.push(`décharge de ${fmt(-l.avantage)} kg`);
-        else if (l.avantage >= 1) morceaux.push(`surcharge de ${fmt(l.avantage)} kg`);
-        else morceaux.push(`poids conforme à sa valeur (${l.avantage >= 0 ? "+" : ""}${fmt(l.avantage)} kg)`);
-      }
-      if (l.forme) morceaux.push(`${l.forme.top5} top-5 sur ${l.forme.sorties} sorties`);
-      l.justification = morceaux.join(" · ");
+      const fav = criteres.filter(c => c === 1).length;
+      const def = criteres.filter(c => c === -1).length;
+      l.profil = fav >= 2 && def === 0 ? "PROFIL FAVORABLE"
+        : def >= 2 ? "PROFIL MOINS FAVORABLE"
+        : "PROFIL À SURVEILLER";
+      l.justification = just.join(" · ");
     }
-    return { moyenne, nbEvalues: evalues.length, nbPartants: lignes.length, lignes };
+    return { moyenne, sigma, nbEvalues: evalues.length, nbPartants: lignes.length, lignes, bande, distanceM: distanceM != null ? distanceM : null };
   }
 
-  /* ============================================================
+/* ============================================================
      Orchestration d'une actualisation complète
      ============================================================ */
 
@@ -1331,7 +1385,9 @@ TM.Sources = (() => {
             });
           }
           lignes.sort((x, y) => x.numero - y.numero);
-          const analyse = analyserPelotonHandicap(lignes);
+          const mDist = (rc.course.distance || "").match(/(\d[\d ]*)\s*m/);
+          const distanceM = mDist ? parseInt(mDist[1].replace(/\s/g, ""), 10) : null;
+          const analyse = analyserPelotonHandicap(lignes, distanceM);
           if (!analyse) throw new Error("aucune valeur handicap publiée sur la page pronostics");
           analyse.distance = rc.course.distance;
           course.handicapData = analyse;
@@ -1451,5 +1507,5 @@ TM.Sources = (() => {
     return { course, partants, statuts, erreurs };
   }
 
-  return { actualiserTout, parsePressePartants, parseSynthesePresse, parsePageQuinte, parsePagePronostic, parsePageCotes, parseFicheCheval, parsePageTurfFrQuinte, parsePartantsTurfFr, parsePartantsTurfFrNoms, parsePageResultat, parsePagePronosticsDemain, parseListeCourses, parsePagePronosticsCourse, comparerPartants, cleNom, isoDepuisDateTexte, parseMusiqueForme, analyserPelotonHandicap };
+  return { actualiserTout, parsePressePartants, parseSynthesePresse, parsePageQuinte, parsePagePronostic, parsePageCotes, parseFicheCheval, parsePageTurfFrQuinte, parsePartantsTurfFr, parsePartantsTurfFrNoms, parsePageResultat, parsePagePronosticsDemain, parseListeCourses, parsePagePronosticsCourse, comparerPartants, cleNom, isoDepuisDateTexte, parseMusiqueForme, bandeDistance, analyserPelotonHandicap };
 })();

@@ -131,7 +131,7 @@
         <thead>
           <tr>
             <th>N°</th><th>Cheval</th><th>Val.</th><th>Écart</th><th>Poids</th>
-            <th>Avantage</th><th>Forme</th><th>Potentiel Top 5</th>
+            <th>Corde</th><th>Avantage</th><th>Forme</th><th>Potentiel Top 5</th>
           </tr>
         </thead>
         <tbody id="hc-tbody"></tbody>
@@ -139,11 +139,16 @@
     </div>
     <div class="hc-cartes" id="hc-cartes"></div>
     <p class="hc-note">
-      Appréciation qualitative construite sur des critères mesurables (valeur handicap,
-      poids porté, forme récente) — ce n'est pas une probabilité mathématique de terminer
-      dans les cinq premiers. Profils : ≥ 2 axes dans le tiers supérieur du peloton sans
-      aucun dans le tiers inférieur → <strong>PROFIL FAVORABLE</strong> ; ≥ 2 axes dans le
-      tiers inférieur → <strong>PROFIL MOINS FAVORABLE</strong> ; sinon
+      Appréciation qualitative construite sur quatre critères mesurables — ce n'est pas une
+      probabilité mathématique de terminer dans les cinq premiers. Critères : valeur handicap
+      lue <strong>selon la distance</strong> (sur sprint ≤ 1400 m, une valeur nettement
+      au-dessus du peloton est pénalisée — le poids ne peut être rattrapé faute de distance ;
+      sur longue distance ≥ 2200 m, la classe est valorisée ; « nettement » = au-delà de
+      l'écart-type du peloton, mesuré sur la course), avantage poids en kg (décharge par
+      rapport au poids attendu pour sa valeur), forme récente (top-5 sur les 6 dernières
+      sorties) et <strong>corde</strong> (C1 à C8 favorable). Profils : ≥ 2 critères
+      favorables sans aucun défavorable → <strong>PROFIL FAVORABLE</strong> ; ≥ 2 critères
+      défavorables → <strong>PROFIL MOINS FAVORABLE</strong> ; sinon
       <strong>PROFIL À SURVEILLER</strong>. Une valeur absente est exclue de la moyenne,
       jamais remplacée par zéro.
     </p>

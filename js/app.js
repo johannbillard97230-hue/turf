@@ -543,7 +543,9 @@ TM.App = (() => {
     const signe = v => (v >= 0 ? "+" : "") + fmt(v);
     const nd = '<span class="hc-nd">N/D</span>';
 
-    $("hc-course").textContent = [course.nom, hc.distance].filter(Boolean).join(" · ");
+    const labelBande = { sprint: "Sprint (≤ 1400 m)", intermediaire: "Distance intermédiaire", long: "Longue distance (≥ 2200 m)" };
+    $("hc-course").textContent = [course.nom, hc.distance, hc.bande ? labelBande[hc.bande] : null]
+      .filter(Boolean).join(" · ");
     $("hc-moyenne").textContent = fmt(hc.moyenne);
     $("hc-evalues").textContent = hc.nbEvalues === hc.nbPartants
       ? `${hc.nbEvalues} partants évalués`
@@ -566,6 +568,7 @@ TM.App = (() => {
         + `<td class="hc-val">${l.valeur != null ? fmt(l.valeur) : nd}</td>`
         + `<td class="hc-ecart">${l.ecart != null ? signe(l.ecart) : nd}</td>`
         + `<td>${l.poids != null ? fmt(l.poids) + " kg" : nd}</td>`
+        + `<td class="hc-corde">${l.corde != null ? "C" + l.corde : nd}</td>`
         + `<td class="hc-avantage">${l.avantage != null ? signe(l.avantage) + " kg" : nd}</td>`
         + `<td class="hc-forme">${l.forme ? l.forme.top5 + "/" + l.forme.sorties : nd}</td>`
         + `<td>${badge(l)}</td>`;
@@ -584,6 +587,7 @@ TM.App = (() => {
         + `<div><dt>Valeur handicap</dt><dd>${l.valeur != null ? fmt(l.valeur) : "N/D"}</dd></div>`
         + `<div><dt>Écart / moyenne</dt><dd>${l.ecart != null ? signe(l.ecart) : "N/D"}</dd></div>`
         + `<div><dt>Poids porté</dt><dd>${l.poids != null ? fmt(l.poids) + " kg" : "N/D"}</dd></div>`
+        + `<div><dt>Corde</dt><dd>${l.corde != null ? "C" + l.corde : "N/D"}</dd></div>`
         + `<div><dt>Avantage poids</dt><dd>${l.avantage != null ? signe(l.avantage) + " kg" : "N/D"}</dd></div>`
         + `<div><dt>Forme (top-5)</dt><dd>${l.forme ? l.forme.top5 + "/" + l.forme.sorties : "N/D"}</dd></div>`
         + `</dl>`
