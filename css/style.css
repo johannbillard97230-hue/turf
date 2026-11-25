@@ -591,9 +591,11 @@ body {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.88rem;
-  min-width: 1060px;
+  min-width: 1240px;
   table-layout: fixed;
 }
+
+.partants th, .partants td { overflow: hidden; }
 
 .partants thead th {
   background: var(--noir-2);
@@ -867,7 +869,9 @@ tr[data-rang="3"] .valeur-chiffre { text-shadow: 0 0 16px rgba(242, 194, 48, 0.4
 
 .sexe-age { font-family: var(--fonte-mono); font-size: 0.85rem; white-space: nowrap; }
 
-.taux { white-space: nowrap; min-width: 190px; }
+.taux { white-space: normal; min-width: 0; }
+.taux .pourcent { white-space: nowrap; }
+.taux .detail { white-space: normal; overflow-wrap: anywhere; }
 .taux-ligne { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .taux .pourcent {
   font-family: var(--fonte-mono);
@@ -875,7 +879,7 @@ tr[data-rang="3"] .valeur-chiffre { text-shadow: 0 0 16px rgba(242, 194, 48, 0.4
   color: var(--emeraude);
 }
 .taux .detail { font-size: 0.74rem; color: var(--texte-faible); font-family: var(--fonte-mono); }
-.taux .barre { max-width: 190px; }
+.taux .barre { width: 100%; max-width: 190px; }
 .taux .barre-remplissage { background: linear-gradient(90deg, var(--emeraude-fort), var(--dore)); }
 
 .sorties { font-size: 0.76rem; color: var(--texte-doux); line-height: 1.5; font-family: var(--fonte-mono); }
