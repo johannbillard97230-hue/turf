@@ -704,6 +704,26 @@ TM.App = (() => {
     $("date-du-jour").textContent = new Date().toLocaleDateString("fr-FR", {
       weekday: "long", day: "2-digit", month: "2-digit", year: "numeric"
     });
+
+    /* Bandeau des états repliable — réservé au mobile : le bouton est masqué
+       au-delà de 880 px et la présentation ordinateur est inchangée.
+       État conservé en mémoire uniquement (développé par défaut à chaque
+       ouverture, conservé pendant toute la navigation dans la page).
+       Les pastilles restent dans le DOM : les statuts continuent d'être
+       mis à jour même lorsque le bandeau est réduit. */
+    const btnSources = $("btn-sources-toggle");
+    if (btnSources) {
+      const nb = document.querySelectorAll("#sources .source-pill").length;
+      const titre = btnSources.querySelector(".sources-toggle-titre");
+      if (titre && nb) titre.textContent = `ÉTAT DES SOURCES · ${nb} INDICATEURS`;
+      const libelle = btnSources.querySelector(".sources-toggle-label");
+      btnSources.addEventListener("click", () => {
+        const replie = document.querySelector(".topbar").classList.toggle("sources-replie");
+        btnSources.setAttribute("aria-expanded", String(!replie));
+        if (libelle) libelle.textContent = replie ? "Afficher les états" : "Réduire les états";
+      });
+    }
+
     $("btn-actualiser").addEventListener("click", actualiser);
     majSelectionUI();
     actualiser(); // chargement immédiat à l'ouverture

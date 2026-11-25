@@ -13,6 +13,11 @@ sélection personnelle de 8 chevaux.
   (elle disparaît à la fermeture de l'onglet).
 - Aucune donnée n'est fabriquée ni modifiée : une information indisponible
   affiche **N/D** ; un cheval « non cité » dans la revue de presse affiche **0**.
+- Sur mobile (≤ 880 px), le bandeau des états des sources est repliable
+  (« Réduire / Afficher les états ») pour dégager l'écran vers la course et
+  les chevaux ; développé par défaut, l'état est conservé en mémoire pendant
+  la navigation et les statuts continuent de se mettre à jour. La présentation
+  ordinateur est inchangée.
 
 ## Sources
 

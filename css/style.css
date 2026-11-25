@@ -102,6 +102,10 @@ body {
   text-transform: uppercase;
 }
 
+/* bouton de repli du bandeau des états — réservé au mobile (≤ 880 px),
+   la présentation ordinateur est strictement inchangée */
+.sources-toggle { display: none; }
+
 /* pastilles de statut des sources */
 .sources {
   display: flex;
@@ -921,6 +925,55 @@ tr[data-rang="3"] .valeur-chiffre { text-shadow: 0 0 16px rgba(242, 194, 48, 0.4
 @media (max-width: 880px) {
   .table-wrap { display: none; }
 
+  /* --- Bandeau des états repliable --- */
+  .sources-toggle {
+    order: 3;
+    flex-basis: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 44px;
+    padding: 9px 13px;
+    border-radius: 8px;
+    border: 1px solid var(--bordure);
+    background: var(--noir-2);
+    color: var(--texte-doux);
+    font-family: var(--fonte-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 0.2s ease-out;
+  }
+  .sources-toggle:active { border-color: var(--bordure-forte); }
+  .sources-toggle-titre { color: var(--texte-faible); font-weight: 600; white-space: nowrap; }
+  .sources-toggle-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--emeraude);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .sources-toggle-chevron { transition: transform 0.25s ease-out; }
+  /* développé : chevron vers le haut (action = réduire) ;
+     réduit : chevron vers le bas (action = déplier) */
+  .sources-toggle[aria-expanded="true"] .sources-toggle-chevron { transform: rotate(180deg); }
+
+  .sources {
+    order: 4;
+    overflow: hidden;
+    max-height: 460px;
+    opacity: 1;
+    transition: max-height 0.28s ease-out, opacity 0.2s ease-out;
+  }
+  .topbar.sources-replie .sources {
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .arrivee-prochaine { grid-template-columns: 1fr; }
   .arrivee-liste { grid-template-columns: 1fr 1fr; }
 
@@ -1004,6 +1057,7 @@ tr[data-rang="3"] .valeur-chiffre { text-shadow: 0 0 16px rgba(242, 194, 48, 0.4
 }
 
 @media (max-width: 520px) {
+  .sources-toggle { font-size: 0.62rem; padding: 8px 11px; }
   .brand-logo { width: 38px; height: 38px; }
   .brand-name { font-size: 1.2rem; }
   .brand-sub { font-size: 0.62rem; }
