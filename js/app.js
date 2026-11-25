@@ -309,6 +309,22 @@ TM.App = (() => {
     return `<span class="cote-chiffre"${titre}>${String(valeur).replace(".", ",")}</span>`;
   }
 
+  /* Variation de cote PMU : (actuelle − dernière) / dernière × 100, arrondie à 0,1 pt
+     pour l'affichage uniquement. Aucun calcul si une des deux cotes manque ou si la
+     dernière cote vaut 0 → N/D. Simple évolution de cote, jamais une prédiction. */
+  function renduVariation(p) {
+    const d = p.cotePrecedente, a = p.coteActuelle;
+    if (d == null || a == null || !(d > 0)) return afficheND();
+    const v = Math.round(((a - d) / d) * 1000) / 10;
+    const cls = v < 0 ? "var-baisse" : v > 0 ? "var-hausse" : "var-stable";
+    const fleche = v < 0 ? "\u25BC" : v > 0 ? "\u25B2" : "\u25B6";
+    const pct = Math.abs(v).toFixed(1).replace(".", ",");
+    const signe = v > 0 ? "+" : v < 0 ? "\u2212" : "";
+    const flux = String(d).replace(".", ",") + " \u2192 " + String(a).replace(".", ",");
+    const titre = "Variation de cote PMU (source Canalturf) — simple évolution de la cote : une baisse n'est en aucun cas une garantie de performance.";
+    return `<span class="variation-bloc ${cls}" title="${titre}"><span class="var-flux">${flux}</span><span class="var-valeur">${fleche} ${signe}${pct} %</span></span>`;
+  }
+
   function renduSexeAge(p) {
     if (p.fiche && p.fiche.sexeAge) return `<span class="sexe-age">${echappe(p.fiche.sexeAge)}</span>`;
     if (p.age != null) return `<span class="sexe-age">${p.age} ans</span>`;
@@ -392,7 +408,7 @@ TM.App = (() => {
       <td class="col-corde">${renduCorde(p)}</td>
       <td class="col-def">${renduDeferrage(p)}</td>
       <td class="col-coted">${renduCote(p.cotePrecedente, p.heureCotes)}</td>
-      <td class="col-cotea">${renduCote(p.coteActuelle, p.heureCotes)}</td>
+      <td class="col-cotea">${renduCote(p.coteActuelle, p.heureCotes)}</td><td class="col-variation">${renduVariation(p)}</td>
       <td class="col-sexe">${renduSexeAge(p)}</td>
       <td class="col-taux"><div class="taux">${renduTaux(p)}${dist ? badgesDistinction(dist) : ""}</div></td>
       <td class="col-sorties"><div class="sorties">${renduSorties(p)}</div></td>`;
@@ -430,7 +446,7 @@ TM.App = (() => {
         <span><span class="etiquette">${etiquetteCorde()}</span>${renduCorde(p)}</span>
         <span><span class="etiquette">${etiquetteDef()}</span>${renduDeferrage(p)}</span>
         <span><span class="etiquette">Dernière cote</span>${renduCote(p.cotePrecedente, p.heureCotes)}</span>
-        <span><span class="etiquette">Cote actuelle</span>${renduCote(p.coteActuelle, p.heureCotes)}</span>
+        <span><span class="etiquette">Cote actuelle</span>${renduCote(p.coteActuelle, p.heureCotes)}</span><span><span class="etiquette">Variation cote</span>${renduVariation(p)}</span>
         <span><span class="etiquette">Sexe · Âge</span>${renduSexeAge(p)}</span>
         <span><span class="etiquette">Taux de réussite</span>${t ? `<span class="pourcent" style="font-family:var(--fonte-mono);color:var(--emeraude);font-weight:600">${t.pourcent.toFixed(1).replace(".", ",")}%</span> <span class="detail">(${t.victoires} V + ${t.places} P) / ${t.courses}</span>` : afficheND()}${dist ? badgesDistinction(dist) : ""}</span>
         <span class="sorties"><span class="etiquette">3 dernières sorties</span>${renduSorties(p)}</span>

@@ -609,16 +609,17 @@ body {
 
 /* largeurs fixes (table-layout: fixed) */
 .col-sel { width: 46px; }
-.col-nom { width: 17%; }
-.col-valeur { width: 11%; }
-.col-cit { width: 7%; }
+.col-nom { width: 15%; }
+.col-valeur { width: 10%; }
+.col-cit { width: 6%; }
 .col-corde { width: 5%; }
-.col-def { width: 7%; }
-.col-coted, .col-cotea { width: 7%; }
+.col-def { width: 6%; }
+.col-coted, .col-cotea { width: 6%; }
+.col-variation { width: 10%; }
 /* ces deux en-têtes peuvent passer sur deux lignes plutôt que déborder */
 .partants thead th.col-coted, .partants thead th.col-cotea { white-space: normal; line-height: 1.25; }
 .col-sexe { width: 9%; }
-.col-taux { width: 16%; }
+.col-taux { width: 14%; }
 .col-sorties { width: auto; }
 
 /* cotes PMU (relevées par Canalturf, ~toutes les 10 min) */
@@ -630,6 +631,32 @@ body {
   white-space: nowrap;
 }
 .col-cotea .cote-chiffre { color: var(--dore); font-size: 1.05rem; }
+
+
+/* variation de cote PMU : dernière → actuelle + % (baisse = émeraude, hausse = orange, stable = gris) */
+.variation-bloc {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  line-height: 1.2;
+}
+.var-flux {
+  font-family: var(--fonte-mono);
+  font-size: 0.78rem;
+  color: var(--texte-faible);
+  white-space: nowrap;
+}
+.var-valeur {
+  font-family: var(--fonte-mono);
+  font-weight: 700;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+.var-baisse .var-valeur { color: var(--emeraude); }
+.var-hausse .var-valeur { color: var(--orange-place); }
+.var-stable .var-valeur { color: var(--texte-faible); }
+.partants thead th.col-variation { white-space: normal; line-height: 1.25; }
 
 /* corde : numéro à la corde */
 .corde-num {
