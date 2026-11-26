@@ -179,6 +179,35 @@ TM.App = (() => {
 
   function afficherCourse(course, partants) {
     if (!course) return;
+
+    /* ---------- Cote de référence (« cote du matin ») ----------
+       Premier relevé valide enregistré pour cette course sur ce
+       navigateur, FIGÉ ensuite (TM.CotesRef — écriture unique,
+       jamais d'écrasement par une actualisation).
+       - Référence candidate : le PREMIER point de la série horodatée
+         de la source (= premier relevé publié de la journée). Si la
+         première consultation a lieu avant l'ouverture des relevés,
+         rien n'est enregistré (N/D) — la première cote valide vue
+         ensuite devient la référence, avec son heure réelle affichée.
+       - Clé : date de course (ISO publiée par la source) + identifiant
+         de course + dossard → jamais de mélange entre deux courses
+         ni de réutilisation d'une journée sur l'autre. */
+    const dateIso = TM.Sources.isoDepuisDateTexte(course.dateTexte) || null;
+    if (dateIso && window.TM && TM.CotesRef) {
+      TM.CotesRef.purger(dateIso);
+      for (const p of partants) {
+        p.cotePremiere = p.cotePremiere != null ? p.cotePremiere : null;
+        if (p.cotePremiere != null) {
+          TM.CotesRef.enregistrer(dateIso, course, p.numero, p.cotePremiere, p.heurePremiere || null, p.nom);
+        }
+        const ref = TM.CotesRef.lire(dateIso, course, p.numero);
+        p.coteReference = ref ? ref.cote : null;
+        p.heureReference = ref ? ref.heure : null;
+      }
+    } else {
+      for (const p of partants) { p.coteReference = null; p.heureReference = null; }
+    }
+
     $("titre-course").textContent = course.nom || "Course du jour";
     $("fact-hippodrome").textContent = course.hippodrome || "N/D";
     $("fact-rc").textContent = course.reunionCourse || "N/D";
@@ -309,11 +338,27 @@ TM.App = (() => {
     return `<span class="cote-chiffre"${titre}>${String(valeur).replace(".", ",")}</span>`;
   }
 
-  /* Variation de cote PMU : (actuelle − dernière) / dernière × 100, arrondie à 0,1 pt
-     pour l'affichage uniquement. Aucun calcul si une des deux cotes manque ou si la
-     dernière cote vaut 0 → N/D. Simple évolution de cote, jamais une prédiction. */
+  /* Cote de référence (« cote du matin ») : premier relevé valide
+     enregistré pour cette course sur ce navigateur — figé ensuite.
+     L'heure affichée est celle du relevé enregistré : si la première
+     cote disponible n'a été vue qu'en cours de journée, l'heure le
+     dit clairement (jamais présentée comme un relevé du matin). */
+  function renduCoteReference(p) {
+    if (p.coteReference == null) return afficheND();
+    const titre = p.heureReference
+      ? ` title="Premier relevé enregistré à ${echappe(p.heureReference)} — référence figée pour cette course (stockage local de ce navigateur)"`
+      : ' title="Référence figée pour cette course (stockage local de ce navigateur)"';
+    return `<span class="cote-ref"${titre}><span class="cote-chiffre">${String(p.coteReference).replace(".", ",")}</span>` +
+      (p.heureReference ? `<span class="cote-ref-heure">${echappe(p.heureReference)}</span>` : "") + `</span>`;
+  }
+
+  /* Variation de cote PMU : (actuelle − référence) / référence × 100,
+     la référence étant la COTE DU MATIN figée — jamais le relevé
+     précédent. Aucun calcul si une des deux cotes manque ou si la
+     référence vaut 0 → N/D. Simple évolution de cote, jamais une
+     prédiction. */
   function renduVariation(p) {
-    const d = p.cotePrecedente, a = p.coteActuelle;
+    const d = p.coteReference, a = p.coteActuelle;
     if (d == null || a == null || !(d > 0)) return afficheND();
     const v = Math.round(((a - d) / d) * 1000) / 10;
     const cls = v < 0 ? "var-baisse" : v > 0 ? "var-hausse" : "var-stable";
@@ -321,7 +366,7 @@ TM.App = (() => {
     const pct = Math.abs(v).toFixed(1).replace(".", ",");
     const signe = v > 0 ? "+" : v < 0 ? "\u2212" : "";
     const flux = String(d).replace(".", ",") + " \u2192 " + String(a).replace(".", ",");
-    const titre = "Variation de cote PMU (source Canalturf) — simple évolution de la cote : une baisse n'est en aucun cas une garantie de performance.";
+    const titre = "Variation depuis la cote matin (référence figée, source Canalturf) — simple évolution de la cote : une baisse n'est en aucun cas une garantie de performance.";
     return `<span class="variation-bloc ${cls}" title="${titre}"><span class="var-flux">${flux}</span><span class="var-valeur">${fleche} ${signe}${pct} %</span></span>`;
   }
 
@@ -407,7 +452,7 @@ TM.App = (() => {
       </td>
       <td class="col-corde">${renduCorde(p)}</td>
       <td class="col-def">${renduDeferrage(p)}</td>
-      <td class="col-coted">${renduCote(p.cotePrecedente, p.heureCotes)}</td>
+      <td class="col-coted">${renduCoteReference(p)}</td>
       <td class="col-cotea">${renduCote(p.coteActuelle, p.heureCotes)}</td><td class="col-variation">${renduVariation(p)}</td>
       <td class="col-sexe">${renduSexeAge(p)}</td>
       <td class="col-taux"><div class="taux">${renduTaux(p)}${dist ? badgesDistinction(dist) : ""}</div></td>
@@ -445,8 +490,8 @@ TM.App = (() => {
         <span><span class="etiquette">Citations</span>${renduCitations(p)}</span>
         <span><span class="etiquette">${etiquetteCorde()}</span>${renduCorde(p)}</span>
         <span><span class="etiquette">${etiquetteDef()}</span>${renduDeferrage(p)}</span>
-        <span><span class="etiquette">Dernière cote</span>${renduCote(p.cotePrecedente, p.heureCotes)}</span>
-        <span><span class="etiquette">Cote actuelle</span>${renduCote(p.coteActuelle, p.heureCotes)}</span><span><span class="etiquette">Variation cote</span>${renduVariation(p)}</span>
+        <span><span class="etiquette">Cote matin</span>${renduCoteReference(p)}</span>
+        <span><span class="etiquette">Cote actuelle</span>${renduCote(p.coteActuelle, p.heureCotes)}</span><span><span class="etiquette">Variation depuis le matin</span>${renduVariation(p)}</span>
         <span><span class="etiquette">Sexe · Âge</span>${renduSexeAge(p)}</span>
         <span><span class="etiquette">Taux de réussite</span>${t ? `<span class="pourcent" style="font-family:var(--fonte-mono);color:var(--emeraude);font-weight:600">${t.pourcent.toFixed(1).replace(".", ",")}%</span> <span class="detail">(${t.victoires} V + ${t.places} P) / ${t.courses}</span>` : afficheND()}${dist ? badgesDistinction(dist) : ""}</span>
         <span class="sorties"><span class="etiquette">3 dernières sorties</span>${renduSorties(p)}</span>

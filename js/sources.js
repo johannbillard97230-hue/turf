@@ -523,6 +523,9 @@ TM.Sources = (() => {
        - coteActuelle : dernier point de la série
        - cotePrecedente : point précédent (N/D si un seul point)
        - heureCotes : heure du dernier relevé publiée par la source
+     On expose aussi le PREMIER point (cotePremiere + heurePremiere) :
+     il sert de référence candidate pour le suivi « cote du matin » —
+     l'enregistrement figé est assuré par TM.CotesRef (localStorage).
      Aucune valeur n'est fabriquée : série absente → tout à null.
      ============================================================ */
 
@@ -545,7 +548,9 @@ TM.Sources = (() => {
       cotes[numero] = {
         coteActuelle: dernier.valeur,
         cotePrecedente: points.length > 1 ? points[points.length - 2].valeur : null,
-        heureCotes: dernier.heure
+        heureCotes: dernier.heure,
+        cotePremiere: points[0].valeur,
+        heurePremiere: points[0].heure
       };
       if (!heureMax || dernier.heure > heureMax) heureMax = dernier.heure;
     }
@@ -1253,6 +1258,10 @@ TM.Sources = (() => {
             p.coteActuelle = c ? c.coteActuelle : null;
             p.cotePrecedente = c ? c.cotePrecedente : null;
             p.heureCotes = c ? c.heureCotes : null;
+            // Premier point de la série : référence candidate « cote du
+            // matin » — l'enregistrement figé est fait côté app (TM.CotesRef).
+            p.cotePremiere = c ? c.cotePremiere : null;
+            p.heurePremiere = c ? c.heurePremiere : null;
             if (c) nbCotes++;
           }
           course.heureCotes = heureMax;
@@ -1507,5 +1516,5 @@ TM.Sources = (() => {
     return { course, partants, statuts, erreurs };
   }
 
-  return { actualiserTout, parsePressePartants, parseSynthesePresse, parsePageQuinte, parsePagePronostic, parsePageCotes, parseFicheCheval, parsePageTurfFrQuinte, parsePartantsTurfFr, parsePartantsTurfFrNoms, parsePageResultat, parsePagePronosticsDemain, parseListeCourses, parsePagePronosticsCourse, comparerPartants, cleNom, isoDepuisDateTexte, parseMusiqueForme, bandeDistance, analyserPelotonHandicap };
+  return { actualiserTout, parsePressePartants, parseSynthesePresse, parsePageQuinte, parsePagePronostic, parsePageCotes, parseFicheCheval, parsePageTurfFrQuinte, parsePartantsTurfFr, parsePartantsTurfFrNoms, parsePageResultat, parsePagePronosticsDemain, parseListeCourses, parsePagePronosticsCourse, comparerPartants, cleNom, isoDepuisDateTexte, parseMusiqueForme, bandeDistance, analyserPelotonHandicap, isoDepuisDateTexte, dateTexteIso };
 })();

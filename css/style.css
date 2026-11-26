@@ -615,12 +615,13 @@ body {
 
 /* largeurs fixes (table-layout: fixed) */
 .col-sel { width: 46px; }
-.col-nom { width: 15%; }
+.col-nom { width: 14%; }
 .col-valeur { width: 10%; }
 .col-cit { width: 6%; }
 .col-corde { width: 5%; }
 .col-def { width: 6%; }
-.col-coted, .col-cotea { width: 6%; }
+.col-coted { width: 7%; }
+.col-cotea { width: 6%; }
 .col-variation { width: 10%; }
 /* ces deux en-têtes peuvent passer sur deux lignes plutôt que déborder */
 .partants thead th.col-coted, .partants thead th.col-cotea { white-space: normal; line-height: 1.25; }
@@ -637,6 +638,17 @@ body {
   white-space: nowrap;
 }
 .col-cotea .cote-chiffre { color: var(--dore); font-size: 1.05rem; }
+
+/* cote de référence (« cote du matin ») : valeur figée + heure du premier relevé */
+.cote-ref { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; line-height: 1.2; }
+.cote-ref .cote-chiffre { color: var(--texte); }
+.cote-ref-heure {
+  font-family: var(--fonte-mono);
+  font-size: 0.68rem;
+  color: var(--texte-faible);
+  white-space: nowrap;
+}
+.cote-ref-heure::before { content: "à "; }
 
 
 /* variation de cote PMU : dernière → actuelle + % (baisse = émeraude, hausse = orange, stable = gris) */
@@ -1044,6 +1056,12 @@ tr[data-rang="3"] .valeur-chiffre { text-shadow: 0 0 16px rgba(242, 194, 48, 0.4
     font-size: 0.62rem; text-transform: uppercase;
     letter-spacing: 0.08em; color: var(--texte-faible);
     margin-bottom: 1px;
+    /* les étiquettes longues (« Variation depuis le matin ») passent
+       sur deux lignes plutôt que d'être tronquées */
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    line-height: 1.3;
   }
   .carte-infos .sorties { grid-column: 1 / -1; }
 

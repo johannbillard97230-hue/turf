@@ -26,7 +26,7 @@ sélection personnelle de 8 chevaux.
 | Valeur | pronostics-turf.info — `presse-partants-pmu.php` | valeur brute publiée (« sa valeur »), âge, n° à la corde, jockey/driver, entraîneur, gains, statistiques courses / victoires / placés, déferrage de la course du jour |
 | Citations | pronostics-turf.info — `liste-synthese-de-pronostics-turf.php` | « LISTE RÉCAPITULATIVE — Position / Numéro / Fois cité » de la revue de presse hippique |
 | Sexe/Âge & musique | Fiches Canalturf | sexe, âge, musique, 3 dernières sorties, réunion/course |
-| Cotes PMU | Canalturf — page « /cotes/ » de la course | historique horodaté des cotes PMU par cheval (relevés ~toutes les 10 min) : « Cote actuelle » = dernier relevé, « Dernière cote » = relevé précédent, « Variation cote » = (actuelle − dernière) / dernière × 100, heure du relevé affichée |
+| Cotes PMU | Canalturf — page « /cotes/ » de la course | historique horodaté des cotes PMU par cheval (relevés ~toutes les 10 min) : « Cote actuelle » = dernier relevé, « Cote matin » = référence figée (voir ci-dessous), « Variation depuis le matin » = (actuelle − référence) / référence × 100, heure du relevé affichée |
 | Valeurs handicap | Canalturf — page « pronostics-PMU » de la course | colonnes « Val. », « Poids », « Corde » et musique du tableau des partants (handicaps de plat uniquement) |
 | Corde (plat) | turf-fr.com — `/quinte/` puis fiche « partants » de la course ; page pronostics Canalturf en secours (course vérifiée) | numéro de corde réel (stalles de départ) des courses de plat, que pronostics-turf.info ne publie pas (en plat, « Poteau » est remplacé par « Poids ») |
 | Arrivée & prochaine course | Canalturf — page résultat de la course du jour (dérivée du pronostic, comme les cotes) en priorité, médaillon « dernières courses support Quinté+ » en repli ; page `courses_liste_pronostics_demain.php` | arrivée du dernier Quinté+ disputé (8 premiers : place, dossard, nom) — la page résultat de la course du jour est mise en ligne dès l'arrivée, souvent avant le médaillon ; heure de la prochaine course — aujourd'hui si la course du jour n'est pas courue, demain sinon (comparaison sur les dates publiées, jamais sur l'horloge du navigateur) |
@@ -154,18 +154,31 @@ d'égalité. Jamais de tri sur les cotes.
   (ex æquo : tous les chevaux à la cote minimale). Un retrait manuel est
   respecté jusqu'à la fin de la session. Sans cotes : aucun favori. Les
   cotes ne modifient jamais le classement par valeur.
-- **Dernière cote / Cote actuelle** : cotes PMU relevées par Canalturf
-  (format PMU Play : 2,9 / 8,8 / 71 — décimales respectées). L'heure du
-  dernier relevé figure dans l'encadré de la course (« Cotes relevées à »).
-  Avant l'ouverture des relevés (~2 h avant le départ), N/D est affiché.
-- **Variation cote** : évolution entre la dernière cote relevée et la cote
-  actuelle, calculée uniquement à partir de ces deux valeurs Canalturf :
-  `(actuelle − dernière) / dernière × 100`, arrondie à 0,1 pt pour
-  l'affichage. Baisse = vert (▼), hausse = orange (▲), cote stable = gris
-  (▶). Aucun calcul si une des deux cotes manque ou si la dernière vaut 0 :
-  N/D. Une variation — à la baisse comme à la hausse — n'est en aucun cas
-  une garantie de performance ou de victoire : ce n'est qu'une évolution
-  de la cote PMU.
+- **Cote actuelle** : dernière cote PMU relevée par Canalturf (format PMU
+  Play : 2,9 / 8,8 / 71 — décimales respectées). L'heure du dernier relevé
+  figure dans l'encadré de la course (« Cotes relevées à »). Avant
+  l'ouverture des relevés (~2 h avant le départ), N/D est affiché.
+- **Cote matin (référence figée)** : premier relevé valide enregistré pour
+  cette course sur ce navigateur. La référence candidate est le premier
+  point de la série horodatée Canalturf (premier relevé publié de la
+  journée) ; elle est enregistrée **une seule fois** dans le stockage local
+  (`localStorage`, clé date + course + dossard) et **jamais écrasée**
+  ensuite, quel que soit le nombre d'actualisations — une nouvelle course
+  ou une nouvelle journée crée ses propres références. L'heure du premier
+  relevé est affichée sous la cote : si la première consultation a lieu
+  après l'ouverture des relevés, l'heure le montre (jamais présentée comme
+  un relevé du matin si elle a été obtenue plus tard). Aucune cote manquante
+  ou nulle ne devient une référence. Limites assumées : les références
+  vivent dans le navigateur de l'appareil — elles ne sont pas partagées
+  entre appareils et disparaissent si les données du navigateur sont
+  effacées ; les références des journées passées sont purgées au chargement.
+- **Variation depuis le matin** : `(actuelle − référence) / référence × 100`
+  — toujours par rapport à la référence figée, jamais au relevé précédent —
+  arrondie à 0,1 pt pour l'affichage. Baisse = vert (▼), hausse = orange (▲),
+  cote stable = gris (▶). Aucun calcul si une des deux cotes manque ou si la
+  référence vaut 0 : N/D. Une variation — à la baisse comme à la hausse —
+  n'est en aucun cas une garantie de performance ou de victoire : ce n'est
+  qu'une évolution de la cote PMU.
 - **Dernière arrivée Quinté+** : les 8 premiers du dernier Quinté+ disputé
   (place, dossard, nom — repris à l'identique de la page résultat Canalturf,
   avec la date de la course affichée). Dès que la course du jour est courue,
